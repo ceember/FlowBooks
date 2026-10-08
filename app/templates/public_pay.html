@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pay Invoice #{{ inv.invoice_number }} — {{ company.get('company_name', '') }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif;
+            background: #eef1f5;
+            color: #1a1a2e;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            padding: 40px 16px;
+        }
+        .pay-card {
+            background: #ffffff;
+            border: 1px solid #c0c8d0;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 520px;
+            height: fit-content;
+        }
+        .pay-header {
+            background: linear-gradient(180deg, #336699 0%, #003366 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+        .pay-header h1 { font-size: 20px; margin-bottom: 4px; }
+        .pay-header .inv-number { font-size: 14px; opacity: 0.85; }
+        .pay-body { padding: 24px; }
+        .detail-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        .detail-table td {
+            padding: 8px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-table td:first-child {
+            color: #4a4a6a;
+            font-weight: 600;
+            width: 40%;
+        }
+        .detail-table td:last-child { text-align: right; }
+        .balance-row td {
+            font-size: 18px;
+            font-weight: 700;
+            color: #003366;
+            border-bottom: 2px solid #003366;
+            padding: 12px 0;
+        }
+        .pay-btn {
+            display: block;
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(180deg, #336699 0%, #003366 100%);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .pay-btn:hover { background: linear-gradient(180deg, #4a7fb5 0%, #336699 100%); }
+        .pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .status-box {
+            padding: 16px;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .status-success { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+        .status-cancelled { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+        .status-paid { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+        .pay-footer {
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 11px;
+            color: #7a7a9a;
+            border-top: 1px solid #eee;
+        }
+        .company-info {
+            font-size: 12px;
+            color: #4a4a6a;
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body { background: #14161c; color: #e0e4ec; }
+            .pay-card { background: #1e2028; border-color: #2e3240; }
+            .pay-header { background: linear-gradient(180deg, #2a5a8a 0%, #1a3050 100%); }
+            .detail-table td { border-bottom-color: #2e3240; }
+            .detail-table td:first-child { color: #a0a8b8; }
+            .balance-row td { color: #8ab4e0; border-bottom-color: #5b9bd5; }
+            .pay-btn { background: linear-gradient(180deg, #2a5a8a 0%, #1e4470 100%); }
+            .pay-btn:hover { background: linear-gradient(180deg, #3a6a9a 0%, #2a5a8a 100%); }
+            .status-success { background: #1a3a2a; color: #4caf7a; border-color: #2a6a4a; }
+            .status-cancelled { background: #2a2518; color: #e0a840; border-color: #4a4020; }
+            .status-paid { background: #1a2838; color: #6bb3e8; border-color: #2a5a8a; }
+            .pay-footer { color: #606878; border-top-color: #2e3240; }
+            .company-info { color: #a0a8b8; }
+        }
+    </style>
+</head>
+<body>
+    <div class="pay-card">
+        <div class="pay-header">
+            <h1>{{ company.get('company_name', 'Invoice') }}</h1>
+            <div class="inv-number">Invoice #{{ inv.invoice_number }}</div>
+        </div>
+        <div class="pay-body">
+            {% if payment_status == 'success' %}
+            <div class="status-box status-success">
+                Payment received — thank you!
+            </div>
+            {% elif payment_pending %}
+            <div class="status-box status-paid">
+                Your payment is being confirmed. If you completed checkout,
+                it will be recorded shortly — you can refresh this page to
+                check again.
+            </div>
+            {% elif payment_status == 'cancelled' %}
+            <div class="status-box status-cancelled">
+                Payment was cancelled. You can try again below.
+            </div>
+            {% elif inv.status.value == 'paid' %}
+            <div class="status-box status-paid">
+                This invoice has been paid in full.
+            </div>
+            {% endif %}
+
+            <table class="detail-table">
+                <tr><td>Invoice Date</td><td>{{ inv.date }}</td></tr>
+                {% if inv.due_date %}
+                <tr><td>Due Date</td><td>{{ inv.due_date }}</td></tr>
+                {% endif %}
+                {% if inv.terms %}
+                <tr><td>Terms</td><td>{{ inv.terms }}</td></tr>
+                {% endif %}
+                <tr><td>Invoice Total</td><td>${{ "%.2f"|format(inv.total|float) }}</td></tr>
+                {% if inv.amount_paid|float > 0 %}
+                <tr><td>Amount Paid</td><td>${{ "%.2f"|format(inv.amount_paid|float) }}</td></tr>
+                {% endif %}
+                <tr class="balance-row">
+                    <td>Balance Due</td>
+                    <td>${{ "%.2f"|format(inv.balance_due|float) }}</td>
+                </tr>
+            </table>
+
+            {% if company.get('company_phone') or company.get('company_email') %}
+            <div class="company-info">
+                {% if company.get('company_phone') %}{{ company.get('company_phone') }}{% endif %}
+                {% if company.get('company_phone') and company.get('company_email') %} | {% endif %}
+                {% if company.get('company_email') %}{{ company.get('company_email') }}{% endif %}
+            </div>
+            {% endif %}
+
+            {% if providers and inv.balance_due|float > 0 and inv.status.value not in ['paid', 'void'] and payment_status != 'success' %}
+            {% for p in providers %}
+            <button id="pay-btn-{{ p.name }}" class="pay-btn" data-provider="{{ p.name }}"
+                    onclick="startCheckout('{{ p.name }}')">
+                Pay ${{ "%.2f"|format(inv.balance_due|float) }}{% if providers|length > 1 %} with {{ p.display_name }}{% endif %}
+            </button>
+            {% endfor %}
+            {% endif %}
+        </div>
+        <div class="pay-footer">Powered by FlowBooks</div>
+    </div>
+
+    <script>
+    async function startCheckout(provider) {
+        var btn = document.getElementById('pay-btn-' + provider);
+        var original = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Redirecting...';
+        try {
+            var resp = await fetch('/api/payments/' + provider + '/create-checkout-session', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({payment_token: '{{ token }}'})
+            });
+            var data = await resp.json();
+            if (data.checkout_url) {
+                window.location.href = data.checkout_url;
+            } else {
+                alert(data.detail || 'Failed to start checkout');
+                btn.disabled = false;
+                btn.textContent = original;
+            }
+        } catch (e) {
+            alert('Error: ' + e.message);
+            btn.disabled = false;
+            btn.textContent = original;
+        }
+    }
+    </script>
+</body>
+</html>

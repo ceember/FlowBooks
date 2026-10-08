@@ -1,0 +1,9 @@
+# Extra dependency for the native desktop install (desktop_launcher.py).
+# Kept separate from requirements.txt so the Docker/server image and CI
+# are unaffected. Version 6.2.1 includes the current macOS ARM64/window-close
+# fixes and is pinned so desktop artifacts do not drift between builds.
+pywebview==6.2.1
+# pywebview's Windows window runs on pythonnet, which pywebview asks for
+# unpinned: 2.18.1's build got 3.1.0 and 2.18.2's got 3.2.0 (96 fewer .NET
+# facade DLLs beside Python.Runtime.dll). 3.2.0 is what 2.18.2 was gated on.
+pythonnet==3.2.0; sys_platform == "win32"

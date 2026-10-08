@@ -1,0 +1,218 @@
+name: FlowBooks Windows unsigned candidate
+
+# Proposal only: reviewed clean public source required before manual dispatch.
+# Standard public hosted runner; no Azure signing, paid service or auto-release.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Windows .exe installer + zip
+    runs-on: windows-latest
+    timeout-minutes: 35
+    permissions:
+      contents: write  # manual job creates draft candidate assets only
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'  # pythonnet-safe; 3.13 unverified
+
+      - name: Read version (and check it matches the tag)
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path app/__init__.py -Pattern '__version__ = "(.+)"').Matches.Groups[1].Value
+          if (-not $ver) { Write-Error "Could not parse __version__ from app/__init__.py"; exit 1 }
+          Write-Host "Version: $ver"
+          if ("${{ github.ref }}".StartsWith("refs/tags/v")) {
+            $tagver = "${{ github.ref_name }}".TrimStart("v")
+            if ($tagver -ne $ver) { Write-Error "Tag ${{ github.ref_name }} != app version $ver"; exit 1 }
+          }
+          "APP_VERSION=$ver" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Set up MSYS2 (WeasyPrint native DLL donor)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-pango
+            mingw-w64-x86_64-fontconfig
+            mingw-w64-x86_64-ntldd-git
+
+      - name: Stage WeasyPrint native DLLs
+        shell: msys2 {0}
+        run: |
+          # WeasyPrint (>=61) dlopens exactly these via cffi:
+          #   gobject-2.0, pango-1.0, pangoft2-1.0, harfbuzz,
+          #   harfbuzz-subset, fontconfig
+          # Copy them, their known dependency set, and (safety net) the
+          # transitive closure ntldd reports. ntldd prints WINDOWS paths
+          # (C:\msys64\mingw64\bin\...) so normalize before matching, and
+          # never let a no-match grep kill the step (pipefail).
+          set -e
+          mkdir -p packaging/windows/gtk-dlls
+          cd packaging/windows/gtk-dlls
+          for lib in libgobject-2.0-0 libglib-2.0-0 libpango-1.0-0 \
+                     libpangoft2-1.0-0 libharfbuzz-0 libharfbuzz-subset-0 \
+                     libfontconfig-1; do
+            cp "/mingw64/bin/$lib.dll" .
+          done
+          # Known transitive deps of the set above on MSYS2 (missing ones
+          # are tolerated — package contents drift across snapshots).
+          for lib in libintl-8 libiconv-2 libpcre2-8-0 libffi-8 \
+                     libgmodule-2.0-0 libfribidi-0 libthai-0 libdatrie-1 \
+                     libfreetype-6 libbrotlidec libbrotlicommon libbz2-1 \
+                     libpng16-16 libexpat-1 libgraphite2 zlib1 \
+                     libwinpthread-1 libgcc_s_seh-1 libstdc++-6; do
+            cp "/mingw64/bin/$lib.dll" . 2>/dev/null || true
+          done
+          for _ in 1 2 3; do  # iterate until the closure stops growing
+            deps=$( (for d in *.dll; do ntldd -R "$d" 2>/dev/null || true; done) \
+              | tr '\\' '/' \
+              | grep -Eio '[a-z]:/[a-z0-9_./+-]*/mingw64/bin/[a-z0-9_.+-]+\.dll' \
+              | sort -u || true)
+            for dep in $deps; do cp -n "$dep" . 2>/dev/null || true; done
+          done
+          count=$(ls -1 *.dll | wc -l)
+          echo "Staged $count DLLs:"; ls -1
+          # 7 primaries alone means the closure sweep found nothing — that
+          # WILL fail at import time, so fail loudly here instead.
+          if [ "$count" -lt 15 ]; then
+            echo "ERROR: dependency closure looks incomplete"; exit 1
+          fi
+
+      - name: Install Python dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          # ONE resolver pass for everything (app, desktop, the frozen-only
+          # WinRT OCR projection, and the build tools). Installing in
+          # rounds let a later round upgrade a package from an earlier one,
+          # and the bundle then shipped several .dist-info versions of the
+          # same distribution (cryptography x3, websockets x3 — 2.9.0
+          # Windows gate): importlib.metadata reports whichever it finds
+          # first, which is not necessarily the code that runs.
+          pip install -r requirements.txt -r requirements-desktop.txt `
+            -r packaging/windows/requirements-ocr.txt `
+            pyinstaller pyinstaller-hooks-contrib pillow
+          # Prove the environment holds one version of each distribution
+          # before PyInstaller copies its metadata into the bundle.
+          python -c "import importlib.metadata as m, collections, sys; c = collections.Counter(d.metadata['Name'].lower() for d in m.distributions()); dup = {k: v for k, v in c.items() if v > 1}; print('duplicate distributions:', dup or 'none'); sys.exit(1 if dup else 0)"
+
+      - name: Build the .ico from the icon asset
+        shell: pwsh
+        run: |
+          python -c "from PIL import Image; Image.open('assets/icon-256.png').save('packaging/windows/flowbooks.ico', sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)])"
+
+      - name: Build the bundle (PyInstaller)
+        shell: pwsh
+        run: |
+          cd packaging/windows
+          pyinstaller --noconfirm --clean FlowBooks.spec
+
+      - name: Smoke test the frozen bundle
+        timeout-minutes: 8
+        shell: pwsh
+        run: |
+          # console=False exe: no stdout — verdict is the exit code, details
+          # land in launcher.log under the isolated data dir.
+          $env:SLOWBOOKS_DATA_DIR = "$env:RUNNER_TEMP\flowbooks-smoke\data"
+          $exe = "packaging\windows\dist\FlowBooks\FlowBooks.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList '--smoke-test' -PassThru -Wait -NoNewWindow
+          $log = "$env:SLOWBOOKS_DATA_DIR\launcher.log"
+          if (Test-Path $log) { Get-Content $log } else { Write-Host "no launcher.log written" }
+          if ($p.ExitCode -ne 0) { Write-Error "Smoke test failed (exit $($p.ExitCode))"; exit 1 }
+          Write-Host "Smoke test passed."
+
+      - name: Verify the exe's version resource (issue #106)
+        shell: pwsh
+        run: |
+          $exe = "packaging\windows\dist\FlowBooks\FlowBooks.exe"
+          $expected = (Select-String -Path app\__init__.py -Pattern '__version__ = "([^"]+)"').Matches[0].Groups[1].Value
+          $vi = (Get-Item $exe).VersionInfo
+          Write-Host "FileVersion=$($vi.FileVersion) ProductVersion=$($vi.ProductVersion) ProductName=$($vi.ProductName)"
+          if ($vi.ProductVersion -ne $expected -or $vi.FileVersion -ne $expected -or $vi.ProductName -ne "FlowBooks" -or $vi.OriginalFilename -ne "FlowBooks.exe") {
+            Write-Error "version resource missing or wrong (expected $expected)"; exit 1
+          }
+
+      - name: Package the portable .zip
+        shell: pwsh
+        run: |
+          Compress-Archive -Path packaging\windows\dist\FlowBooks\* -DestinationPath FlowBooks-windows-x64.zip -Force
+
+      - name: Fetch WebView2 Evergreen bootstrapper
+        shell: pwsh
+        run: |
+          # Microsoft's permalink for the ~2MB Evergreen bootstrapper; the
+          # installer runs it only on machines missing the runtime.
+          Invoke-WebRequest -Uri "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -OutFile packaging\windows\MicrosoftEdgeWebView2Setup.exe
+          if ((Get-Item packaging\windows\MicrosoftEdgeWebView2Setup.exe).Length -lt 500KB) { Write-Error "bootstrapper download looks wrong"; exit 1 }
+
+      - name: Build the installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=$env:APP_VERSION" packaging\windows\FlowBooks.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed ($LASTEXITCODE)" }
+          Copy-Item packaging\windows\FlowBooks-Setup-x64.exe .\FlowBooks-Setup-x64.exe
+
+      - name: Validate normal setup and business PDFs plus quiet install
+        timeout-minutes: 12
+        shell: pwsh
+        run: |
+          python -m pip install pypdf==6.19.0
+          if ($LASTEXITCODE -ne 0) { throw "Validation-only pypdf install failed" }
+          python scripts/windows-release-validation.py `
+            --portable-exe packaging/windows/dist/FlowBooks/FlowBooks.exe `
+            --installer FlowBooks-Setup-x64.exe `
+            --receipt windows-validation.json
+          if ($LASTEXITCODE -ne 0) { throw "Windows application/installer validation failed" }
+
+      - name: Publish checksums (SHA256SUMS.windows)
+        shell: pwsh
+        run: |
+          # macOS ships SHA256SUMS.macos; Windows shipped only Authenticode
+          # (the stronger control, but no published digest to compare a
+          # download against — 2.9.0 gate, skytech). Same format as the
+          # macOS file so one `sha256sum -c` idiom covers both.
+          $lines = foreach ($f in 'FlowBooks-Setup-x64.exe', 'FlowBooks-windows-x64.zip') {
+            "{0}  {1}" -f (Get-FileHash $f -Algorithm SHA256).Hash.ToLower(), $f
+          }
+          [IO.File]::WriteAllText("$PWD\SHA256SUMS.windows", ($lines -join "`n") + "`n")
+          Get-Content SHA256SUMS.windows
+
+      - name: Record candidate and runner identity
+        shell: pwsh
+        run: |
+          $receipt = @{
+            commit = "${{ github.sha }}"
+            version = $env:APP_VERSION
+            runnerOS = $env:RUNNER_OS
+            architecture = $env:RUNNER_ARCH
+            imageVersion = $env:ImageVersion
+            unsigned = $true
+            smokeScope = "isolated frozen backend and WeasyPrint; GUI/install/first-run password journey require separate evidence"
+          }
+          $receipt | ConvertTo-Json | Set-Content windows-build-receipt.json
+
+      - name: Store candidate in a draft release (no Actions artifact storage)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $tag = "candidate-windows-${{ github.run_id }}-${{ github.run_attempt }}"
+          $notes = "Unsigned candidate for owner review; native GUI remains NOT_RUN. No public installer release is authorized by this job."
+          [IO.File]::WriteAllText("$PWD\candidate-notes.txt", $notes)
+          gh release create $tag --draft --target "${{ github.sha }}" `
+            --title "FlowBooks $env:APP_VERSION Windows unsigned candidate" `
+            --notes-file candidate-notes.txt `
+            FlowBooks-windows-x64.zip FlowBooks-Setup-x64.exe `
+            SHA256SUMS.windows LICENSE windows-build-receipt.json windows-validation.json
+          if ($LASTEXITCODE -ne 0) { throw "Draft candidate release upload failed" }

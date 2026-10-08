@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Statement</title>
+<style>
+    @page { size: letter; margin: 0.6in 0.75in; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.4; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .company-info { font-size: 9pt; color: #4a4a6a; }
+    .company-name { font-size: 16pt; font-weight: 700; color: #003366; margin-bottom: 4px; }
+    .company-logo { display: block; max-height: 60px; max-width: 200px; margin-bottom: 6px; }
+    .doc-title { text-align: right; }
+    .doc-title h1 { font-size: 22pt; font-weight: 700; color: #003366; margin: 0; letter-spacing: 0.05em; }
+    .as-of { font-size: 10pt; color: #666; margin-top: 4px; }
+    .customer-block { margin-bottom: 20px; padding: 12px; background: #f7f9fb; border: 1px solid #e0e0e0; }
+    .customer-name { font-size: 14pt; font-weight: 700; color: #003366; margin-bottom: 4px; }
+    .customer-info { font-size: 9pt; color: #333; }
+    table.activity { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+    table.activity th { background: #003366; color: white; padding: 5px 8px; font-size: 8pt; text-transform: uppercase; text-align: left; letter-spacing: 0.03em; }
+    table.activity th.r { text-align: right; }
+    table.activity td { padding: 5px 8px; font-size: 9pt; border-bottom: 1px solid #e0e0e0; }
+    table.activity td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    /* Date, type, number and the amounts never wrap; Description takes the
+       rest of the width and wraps inside it. */
+    table.activity th, table.activity td.nw, table.activity td.r { white-space: nowrap; }
+    table.activity td.desc { width: 100%; }
+    table.activity tr:nth-child(even) { background: #f7f9fb; }
+    .aging-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    .aging-table th { background: #4a4a6a; color: white; padding: 5px 8px; font-size: 8pt; text-transform: uppercase; text-align: right; }
+    .aging-table th:first-child { text-align: left; }
+    .aging-table td { padding: 5px 8px; font-size: 10pt; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+    .aging-table td:first-child { text-align: left; }
+    .summary { float: right; width: 260px; margin-top: 16px; }
+    .summary table { width: 100%; }
+    .summary td { padding: 3px 8px; font-size: 10pt; white-space: nowrap; }
+    .summary td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    .summary .label { font-weight: 700; color: #4a4a6a; }
+    .summary .grand { font-size: 14pt; font-weight: 700; color: #003366; border-top: 2px solid #003366; padding-top: 4px; }
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; padding: 8px 0; }
+</style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            {% if company_logo_data_uri %}<img class="company-logo" src="{{ company_logo_data_uri }}" alt="">{% endif %}
+            <div class="company-name">{{ company.company_name }}</div>
+            <div class="company-info">
+                {% if company.company_address1 %}{{ company.company_address1 }}<br>{% endif %}
+                {% if company.company_address2 %}{{ company.company_address2 }}<br>{% endif %}
+                {% set company_city = city_line(company.company_city, company.company_state, company.company_zip) %}
+                {% if company_city %}{{ company_city }}<br>{% endif %}
+                {% if company.company_phone %}{{ company.company_phone }}<br>{% endif %}
+                {% if company.company_email %}{{ company.company_email }}{% endif %}
+            </div>
+        </div>
+        <div class="doc-title">
+            <h1>STATEMENT</h1>
+            <div class="as-of">As of {{ as_of_date | fdate }}</div>
+        </div>
+    </div>
+
+    <div class="customer-block">
+        <div class="customer-name">{{ customer.name }}</div>
+        <div class="customer-info">
+            {% if customer.bill_address1 %}{{ customer.bill_address1 }}<br>{% endif %}
+            {% if customer.bill_address2 %}{{ customer.bill_address2 }}<br>{% endif %}
+            {% set bill_city = city_line(customer.bill_city, customer.bill_state, customer.bill_zip) %}
+            {% if bill_city %}{{ bill_city }}<br>{% endif %}
+            {% if customer.bill_address1 or bill_city %}{% set bill_country = country_line(customer.bill_country) %}{% if bill_country %}{{ bill_country }}{% endif %}{% endif %}
+        </div>
+    </div>
+
+    <table class="activity">
+        {# Amounts are in home currency; a line in another currency names its
+           own amount in Description ("EUR 850.00"). #}
+        {% set in_home = (' (' ~ activity.home_currency ~ ')') if activity.has_foreign else '' %}
+        <thead><tr>
+            <th>Date</th><th>Type</th><th>Number</th><th>Description</th>
+            <th class="r">Amount{{ in_home }}</th><th class="r">Balance{{ in_home }}</th>
+        </tr></thead>
+        <tbody>
+        {# One chronological list — invoices, payments and credit memos
+           interleaved by date — with the running balance after each line
+           (routes/reports/receivables.statement_activity). #}
+        {% macro money(v) %}{% if v < 0 %}-{{ (-v) | currency }}{% else %}{{ v | currency }}{% endif %}{% endmacro %}
+        {% for line in activity.lines %}
+            <tr>
+                <td class="nw">{{ line.date | fdate }}</td>
+                <td class="nw">{{ line.type }}</td>
+                <td class="nw">{{ line.number }}</td>
+                <td class="desc">{{ line.description }}</td>
+                <td class="r"{% if line.amount < 0 %} style="color: #006600;"{% endif %}>{{ money(line.amount) }}</td>
+                <td class="r">{{ money(line.balance) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="summary">
+        <table>
+            <tr><td class="label">{{ terms('Total Invoiced') }}</td><td class="r">{{ activity.total_invoiced | currency }}</td></tr>
+            <tr><td class="label">Total Payments</td><td class="r">{{ activity.total_payments | currency }}</td></tr>
+            {% if activity.total_credits %}<tr><td class="label">Total Credits</td><td class="r">{{ activity.total_credits | currency }}</td></tr>{% endif %}
+            <tr><td class="label grand">Balance Due</td><td class="r grand">{{ money(activity.balance_due) }}</td></tr>
+        </table>
+    </div>
+
+    <div class="footer">Generated by FlowBooks</div>
+</body>
+</html>

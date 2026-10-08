@@ -1,0 +1,303 @@
+{
+  "2.21.0": {
+    "title": "Three things you'd reach for",
+    "items": [
+      "Vendors: click a vendor for its own page, with its bills, payments, credits, what's owed and its details, like a customer's (#223)",
+      "Bills: Edit a posted bill, on the row and in its view, the way an invoice is edited; a bill can't go below what's been paid, and the ledger follows (#225)",
+      "General Ledger: an account's name opens its register, as the P&L and Balance Sheet already did (#224)"
+    ]
+  },
+  "2.20.1": {
+    "title": "A quieter start",
+    "items": [
+      "The release notes show once per version, not on every start; About still shows them any time (#220, reported by @stevenmirabito)",
+      "The sign-in and setup screens no longer link to each other; each already hands you to the other when you belong there (#219, @stevenmirabito)"
+    ]
+  },
+  "2.20.0": {
+    "title": "Tidy lists, classes in detail",
+    "items": [
+      "Customers, Vendors, Items, Employees and Jobs show active records by default, with Inactive and All a click away, and Make Inactive or Make Active on every row; an open balance or an employee asks first (#210)",
+      "P&L by Class lists every account with a column per class; click an amount for the transactions behind it, or a class for its own Profit & Loss (#213)",
+      "The vendor's and item's account fields say Expense or COGS, and the account lists group cost of goods first (#214)"
+    ]
+  },
+  "2.19.0": {
+    "title": "Type to find it",
+    "items": [
+      "Pickers: type part of a name to find it, in the customer, vendor, item, account, employee, job and class pickers and any long list; \"6500\" finds 6500 Rent or Lease, and Enter, Tab or a click takes it",
+      "+ New Customer and + New Vendor stay in the list, and chosen after typing a name that isn't there, the quick add opens with that name filled in",
+      "Screen readers hear each picker by its label, how many names match, and the highlighted one"
+    ]
+  },
+  "2.18.2": {
+    "title": "Every field says its name",
+    "items": [
+      "Screen readers: every form field is announced with its label, a required field as required, and a cell in a grid of inputs (a budget, a batch of payments) with its column and row; a row's checkbox says what ticking it does; clicking a label puts the cursor in its field (#198)",
+      "QuickBooks Interop: an import that came back with errors says so in red, with the count, instead of a green \"Imported 0 records\" (#197)",
+      "AI Insights: Anthropic Claude and xAI Grok come first in the provider list, and Claude starts on its current Sonnet 5.5 (Opus 5.5 and Haiku 4.5 are there too); a model you saved is kept (#200)"
+    ]
+  },
+  "2.18.1": {
+    "title": "Names from QuickBooks come across clean",
+    "items": [
+      "IIF import: a name QuickBooks put in quotes because it holds a comma (\"Jones, Bob\") comes in without the quote marks (#195, @TheLocalW)",
+      "IIF import: names typed in ALL CAPS can come in as normal capitalization; Validate shows a few of your own names as they would import, and it's off unless you tick it (#195, @TheLocalW)",
+      "IIF import: a bill or invoice line posted to a sub-account (Automobile Expense:Gasoline) imports instead of being refused as not found",
+      "IIF import: a second import of the same file says what it skipped, and a payment for a customer who isn't in your books is reported instead of dropped",
+      "Add Reseller Permit: the state's format note sits under the State and Permit number boxes instead of over them (#194, @cnbarry1)"
+    ]
+  },
+  "2.18.0": {
+    "title": "Around the ledger",
+    "items": [
+      "Pay Sales Tax works; tax you pay suppliers is part of the purchase's cost and no longer reduces the sales tax you owe; Schedule C keeps expenses in expenses",
+      "Customer and vendor balances show what is owed; a customer's leftover payment can be applied to a later invoice, and every aging report ties to the balance sheet; payment screens see every open invoice and bill, not just the newest 500",
+      "Bills need an account on each line (never Advertising by default); bills, purchase orders and credit memos print and save as PDF",
+      "Time tracking works end to end, a pay run never pays someone $0.00 without saying so, and tax forms open in the Mac app",
+      "Foreign-currency invoices show their currency and can be paid from Receive Payment; unit prices and tax rates take four decimal places (8.875%)",
+      "Backups are kept per company and can be restored from Settings; Settings refuses values that can't work, in plain words",
+      "QuickBooks Online: import journal entries and posted ledger activity, watched in a live import log (#192, @Sciumo); a switch for the company logo on invoices",
+      "Bank feeds: Fetch older history reaches a SimpleFIN feed back up to a year where the provider keeps it",
+      "Each company keeps its logo, attachments and employee documents in its own company file, and its backups carry them; a read-only sign-in is offered only what it can do"
+    ]
+  },
+  "2.17.3": {
+    "title": "Payments land on the right account",
+    "items": [
+      "Pay Bills: paying bills from more than one vendor at once now makes one payment per vendor; it used to record a single payment to the first vendor that also paid the others' bills",
+      "A payment, credit memo or batch payment can no longer be applied to a different customer's invoice, and a bill payment to a different vendor's bill"
+    ]
+  },
+  "2.17.2": {
+    "title": "Editing an invoice keeps its job costing",
+    "items": [
+      "Saving an invoice from the edit screen no longer strips each line's job and cost code, so its revenue stays on the job-cost reports",
+      "An edited invoice posts the way a new one does: foreign-currency invoices at their exchange rate, and a changed invoice date moves its ledger entry",
+      "An invoice's total cannot be edited below what has already been paid, and paid / partly paid follows the payments"
+    ]
+  },
+  "2.17.1": {
+    "title": "OpenAI works again",
+    "items": [
+      "AI analysis with OpenAI: the current models, including the default gpt-5.4-mini, refused the request; they are sent the settings they accept",
+      "Reasoning models get room to think before answering, and a reply cut off at the limit now says so instead of reporting an unexpected response"
+    ]
+  },
+  "2.17.0": {
+    "title": "Your ledger, in a spreadsheet",
+    "items": [
+      "Trial Balance and General Ledger save as a spreadsheet (CSV) and a printable PDF; Profit & Loss and Balance Sheet gain the spreadsheet",
+      "The General Ledger shows each account's balance brought forward, a running balance, the source of every line and a period total that ties to the Trial Balance",
+      "Bank feeds: a SimpleFIN setup token from any SimpleFIN provider connects, not only bridge.simplefin.org"
+    ]
+  },
+  "2.16.3": {
+    "title": "The Docker image starts again",
+    "items": [
+      "Server / Docker installs: a freshly built image failed to start after a database library update; the library is pinned to the tested version",
+      "Desktop apps are unchanged from 2.16.2"
+    ]
+  },
+  "2.16.2": {
+    "title": "Tax-exempt customers, wider amounts, and two forms put right",
+    "items": [
+      "Estimates: the line-item cells follow their headings again (quantity sat under Cost code); picking an item fills its cost",
+      "Job Cost Entry: the dialog opens as wide as your window and the cost lines scroll instead of being cut off",
+      "A customer marked non-taxable is no longer charged sales tax on invoices, estimates or sales receipts made in the app",
+      "Money columns hold amounts up to 9,999,999,999,999.99, for currencies with large everyday amounts"
+    ]
+  },
+  "2.16.1": {
+    "title": "Wave's full export imports its journals",
+    "items": [
+      "Migrating from Wave: the full \"Get all transactions\" export now imports its journals — its debit and credit columns were not recognised, so the dry run passed and nothing was imported",
+      "For every migration source, a ledger whose amounts all read zero is refused by the dry run, with the file's own header row in the message",
+      "A second click on Import no longer posts the same journals again: what an earlier import already brought in is skipped, and the dry run says how many"
+    ]
+  },
+  "2.16.0": {
+    "title": "The year at a glance",
+    "items": [
+      "Two new overview cards under Customize: P&L year to date with cumulative net by month, and a Balance Sheet trend over the last twelve month-ends",
+      "The trend balances at every point and its latest point equals the Balance Sheet report; a nonprofit sees Activities and Statement of Financial Position",
+      "The chart of accounts import dialog offers a CSV template with the columns and example rows"
+    ]
+  },
+  "2.15.0": {
+    "title": "Your chart, from your file",
+    "items": [
+      "Chart of Accounts → Import… reads a CSV in the export's columns, any spreadsheet with Number / Name / Type, or hledger's account list",
+      "A dry run first: every row's fate with a reason, nothing written until you say so",
+      "Accounts you already have take the file's names; the control accounts the software posts to are renamed, never duplicated",
+      "Replace the seeded chart: unused accounts the file does not name are deactivated, control accounts and history stay"
+    ]
+  },
+  "2.14.0": {
+    "title": "In and out of a company, and the terms once",
+    "items": [
+      "Opening the app lands in your last company, with the picker one click away on the sign-in screen",
+      "Sign out returns to the company picker — no more closing and reopening to switch companies; the Companies page has a Switch company button",
+      "On a multi-user install the sign-in screen lists the users, so you pick your name and type only your own password",
+      "The first launch shows the short terms once — free forever for what shipped, the forms are aids and filing is yours, no warranty — and the Windows installer shows the full license"
+    ]
+  },
+  "2.13.1": {
+    "title": "The words the server sends",
+    "items": [
+      "Connecting QuickBooks Online works again — the sign-in handoff from Intuit was being refused before it could finish (contributed by CimarronSiteServices)",
+      "For nonprofits: every message the server sends now uses your words — a missing pledge says Pledge, not Invoice",
+      "What you post is written in the document's own words — a pledge posts as Pledge #…, a program-fee invoice stays Invoice #…, and the ledger, the email and the printed document agree; existing entries keep the words they were posted with",
+      "Default email templates name the document through {{ doc_label }} — Invoice or Pledge to match what is attached"
+    ]
+  },
+  "2.13.0": {
+    "title": "Bank of America, in a file the bank produced",
+    "items": [
+      "Import Bank of America checking and savings detail CSV exports into the bank feed review queue — contributed by Lazyjimpressions, and verified against exports the bank actually produced",
+      "The bank-import dialog shows that it is reading your file, and will not start a second import if you click twice",
+      "A Windows machine without the WebView2 runtime is told what it can do, and offered the app in its web browser instead"
+    ]
+  },
+  "2.12.1": {
+    "title": "See an email template before you save it",
+    "items": [
+      "Preview an email template edit against a real invoice before saving it. Editing the invoice email used to mean saving over a working template and mailing a customer to find out what it looked like — contributed by mdornich",
+      "The message shown when the app refuses to open a company file older than itself now names a repair script that is actually there. It named a path that was not included in the installed app"
+    ]
+  },
+  "2.12.0": {
+    "title": "Your chart, your templates, your clipboard",
+    "items": [
+      "Security: an email template could be edited to read stored passwords and API keys — the SMTP password, payment-provider keys, accounting-integration tokens — and mail them out. The settings screen has always hidden these, and the template walked around it. Credentials are now removed before any template can see them. Reported privately",
+      "You can remove accounts you do not use. A new company arrives with 57 accounts and, until now, not one of them could be deleted or hidden — so anyone whose business does not look like ours was stuck with a chart they did not choose. Deactivate, Reactivate and Delete are on the Chart of Accounts page now, with a button to show the inactive ones",
+      "Fifteen accounts still cannot be removed, because the software finds them by number when it posts. You can rename them to whatever you call them",
+      "The email template you save is the email that gets sent. Editing it under Settings saved correctly and changed nothing at all — the invoice email was always built from a fixed layout. There is a preview in the Email Invoice dialog now, rendered by the same code that sends, so you can see what a customer will get before they get it",
+      "Emailing an invoice works again. The Send button failed on every install, because the dialog sent a Message field the server refused. The message you type appears at the top of the email",
+      "Copy buttons explain themselves when they cannot copy, and leave the text selected so one keystroke finishes the job. Copying silently did nothing for anyone opening SlowBooks from another machine on the network",
+      "The app refuses to start against a company file older than itself, instead of starting and quietly making it impossible to upgrade. A file that has already been damaged this way can be repaired with scripts/repair-schema.py, which will not touch a table with anything in it"
+    ]
+  },
+  "2.11.1": {
+    "title": "Wave imports work, and you can copy an API token",
+    "items": [
+      "Importing from Wave's Account Transactions report now works. It read every row as empty and then reported the books as balanced, because zero equals zero — so the import appeared to check out and brought nothing in. Found and fixed by rchanks against a real six-year Wave export",
+      "A file Wave names \"Account Transactions\" is now treated as the ledger it is, instead of being mistaken for your chart of accounts. Several other exports that contain both words were being misfiled the same way",
+      "A Copy button on a newly created API token. The token is shown once and had to be selected by hand, which went wrong often enough that one person recovered theirs from a screenshot"
+    ]
+  },
+  "2.11.0": {
+    "title": "Record a credit from a supplier",
+    "items": [
+      "Vendor Credits: when a supplier credits you for a return, a short shipment or an overcharge, record it as its own document. It reduces what you owe that vendor, and you choose which bill it settles — or leave it on their account for the next one",
+      "A/P and A/R aging now show credits you are holding. A credit you had not yet applied was invisible on both reports, so they read higher than the account they are supposed to agree with",
+      "Returning stock to a supplier takes it off the shelf and out of Inventory, instead of leaving an asset on the balance sheet for goods that are gone"
+    ]
+  },
+  "2.10.3": {
+    "title": "Attachments follow a company file between computers",
+    "items": [
+      "The update notice moved to the top of the sidebar, where you see it when the app opens — it used to sit at the bottom of the menu, below everything, so most people never found it. The version you are running is shown there too",
+      "Attachments open again. Clicking an attachment returned nothing at all, and a file added on Windows could not be found when the same company file was opened on a Mac or Linux",
+      "The search results panel closes when you click away, clear the box or change page — it used to stay on screen until you reloaded",
+      "The Quick Entry log is readable in dark theme; it was white text on a white block"
+    ]
+  },
+  "2.10.2": {
+    "title": "You can edit your chart of accounts again",
+    "items": [
+      "Every account has an Edit button. Before this, no account in a new company could be edited at all — including renaming, which 2.10.1 told you was allowed",
+      "Accounts the software posts to are marked CONTROL, and their edit form explains why the number and type are fixed while the name is yours to change",
+      "The test suite now runs on a machine without the PDF rendering libraries, so the Windows box can run it too"
+    ]
+  },
+  "2.10.1": {
+    "title": "A document is never accepted without its journal entry",
+    "items": [
+      "Renumbering an account the software posts to — Accounts Receivable, Accounts Payable and thirteen others — is refused instead of quietly breaking new documents; renaming is still yours to do",
+      "A posting that cannot find the account it needs now stops and names it, rather than saving a document that never reached the ledger",
+      "Opening a company file says once if its chart of accounts is missing an account the books depend on"
+    ]
+  },
+  "2.10.0": {
+    "title": "The bank register is the ledger",
+    "items": [
+      "A register entry posts to the general ledger, and the register shows every posting on the account with a running balance",
+      "Bank and credit-card accounts are flagged on the chart; every paid-from and deposit-to picker lists exactly those",
+      "Statement lines from feeds and imports wait in To review: match them to what you entered, or add them with a category — nothing posts silently",
+      "Transfers between accounts (that is how a card gets paid); credit-card charges pick the card and can be voided",
+      "Reconciliation ticks ledger lines, starts from the prior statement, and locks what it closed",
+      "Upgrading: the old register balance is shown once — post it as an opening balance or dismiss it",
+      "PDF receipts scan on Windows and macOS with nothing to install; poppler-utils is only needed on Linux"
+    ]
+  },
+  "2.9.4": {
+    "title": "Company logo on every document",
+    "items": [
+      "The company logo prints on invoices, estimates, statements, letters, donor documents and reports, not only the analytics PDF",
+      "Import and export failures say that they failed and put the details in the server log instead of the response"
+    ]
+  },
+  "2.9.3": {
+    "title": "SimpleFIN request pinned to the checked address",
+    "items": [
+      "The bank-feed bridge request connects to the address the SSRF guard approved, closing a DNS-rebinding window; certificate checks stay on the hostname"
+    ]
+  },
+  "2.9.2": {
+    "title": "Security: HR and payroll are admin-only; Server Edition policy, SimpleFIN on PostgreSQL, credit-card feeds",
+    "items": [
+      "Server Edition: payroll, tax forms, benefits, employee bank accounts, documents and portal tokens are admin-only for every role below admin; batch and bill payments lock the invoice or bill row",
+      "Server Edition over the LAN gets the strict script policy again; only the desktop window's own loopback connection is relaxed",
+      "SimpleFIN settings save on PostgreSQL installs (the settings value column is now text)",
+      "A bank feed can target a liability account, so credit-card feeds land on the card"
+    ]
+  },
+  "2.9.1": {
+    "title": "Post-release tidy",
+    "items": [
+      "AI Insights: a stored provider key can be removed (Remove beside the saved mark; the API clears on an explicit empty string)",
+      "Windows releases ship SHA256SUMS.windows beside the installer and zip",
+      "Nonprofit mode: the Contributions by Donor card and the analytics aging header speak donor, not sales and customer",
+      "Migrations create every table on their own; the install guide's counts are current"
+    ]
+  },
+  "2.9.0": {
+    "title": "Nonprofit mode",
+    "items": [
+      "Company Type → Nonprofit: donors, pledges, donations, funds and grants on every screen; the data never changes name",
+      "Funds with donor restrictions, a Release from Restriction document, Statement of Activities and Statement of Financial Position, fund balances",
+      "Program / management / fundraising on every expense, allocation rules with Split and month-end runs, Statement of Functional Expenses (Form 990 Part IX)",
+      "Donation receipts and acknowledgment letters with the IRS language; in-kind gifts; year-end giving statements",
+      "Pledge report over recurring pledges; write-offs to Bad Debt Expense; credit memos can be voided",
+      "P&L by Class groups on the line's class; voids carry every dimension",
+      "Save PDF lands in Documents → SlowBooks Pro → Reports and says so; saved reports are a compact list; statements compare to the prior year",
+      "Agents: unknown request fields are rejected (422), tax_rate is documented as a fraction and bounded, DELETE on a posted document names the void route, PTO enums in the spec",
+      "Desktop: Save PDF explains a refused Documents folder and says where the file went; macOS app stapled before the DMG; a fresh company can run depreciation",
+      "macOS: Save PDF, print preview, Save backup and Show in folder work again (the desktop bridge was blocked by the app's security policy since 2.1.0); Save CSV lands next to Save PDF with a Show-in-folder notice",
+      "First-run setup on a file that already has books names the company and prefills it; the company name in Settings and the picker can no longer disagree",
+      "AI Insights: a Custom (OpenAI-compatible) provider for any endpoint you name; the self-hosted Cloudflare Worker gateway's replies come through again"
+    ]
+  },
+  "2.8.0": {
+    "title": "Benefits, all-state payroll, and an overview you can arrange",
+    "items": [
+      "Benefits engine: benefit codes with rules, effective-dated rates, employer matching, employee groups, per-code GL and remittance bills",
+      "State withholding for all 50 states + DC with verified 2026 figures; state W-4 fields on the employee",
+      "PTO banks carry dollars and post a liability; actual payroll burden can flow to jobs by hours",
+      "Company Snapshot: pick, hide and reorder the cards per user, with five new cards",
+      "Sales tax per line: untaxed labor and taxed parts on one invoice",
+      "IIF and CSV export now carry classes, jobs, bills, deposits and sales receipts (#70)",
+      "Accessibility pass: real dialogs, table headers, contrast, tagged PDFs",
+      "Employee portal link opens in the employee's browser with a full address"
+    ]
+  },
+  "2.7.0": {
+    "title": "Jobs, job costing, and receipt intake",
+    "items": [
+      "Jobs under customers with cost codes, budgets and a drill-down cost tree",
+      "Job Cost Entry, time-to-job labor at loaded rates, allocations",
+      "Receipt intake: scan a receipt into a bill or expense"
+    ]
+  }
+}

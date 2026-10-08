@@ -1,0 +1,792 @@
+"""Nonprofit statements — the four reports a treasurer and an auditor ask
+for, computed from the same posted lines as the P&L and balance sheet so
+they always reconcile to them.
+
+    Statement of Financial Position   balance sheet with equity shown as
+                                      net assets without / with donor
+                                      restrictions
+    Statement of Activities           P&L in two columns by restriction,
+                                      with releases between them; the
+                                      total change equals P&L net income
+    Fund balances                     per restricted fund: beginning,
+                                      contributions, spending, releases,
+                                      ending, still-unreleased
+    Statement of Functional Expenses  natural expense accounts by
+                                      program / management / fundraising
+                                      (Form 990 Part IX), plus the
+                                      program-by-program breakout
+
+Net assets without a year-end close
+    Nothing closes income and expense to equity in this ledger (the
+    balance sheet adds a synthetic "Net Income" equity row instead), so
+    the net-asset split is done the same way at report time: income
+    attributed to a restricted fund counts as "with donor restrictions";
+    every other income line and ALL expenses count as "without" (ASU
+    2016-14: expenses are always reported without restrictions — a
+    restricted fund's spending is the evidence for a release, not a
+    reduction of restricted net assets). Releases are real entries
+    DR 3400 / CR 3300, so the two account balances carry them. The two
+    composed lines add up to exactly the balance sheet's total equity.
+"""
+
+from __future__ import annotations
+
+import io
+from datetime import date
+from decimal import Decimal
+from typing import Optional
+
+from sqlalchemy import case, func as sqlfunc
+from sqlalchemy.orm import Session
+
+from app.models.accounts import Account, AccountType
+from app.models.classes import FUNCTIONS, TxnClass
+from app.models.transactions import Transaction, TransactionLine
+from app.services.accounting import (
+    _q,
+    get_net_assets_with_restriction_id,
+    get_net_assets_without_restriction_id,
+)
+from app.services.classes_service import (
+    class_attribution,
+    restricted_class_ids,
+    uncategorized_class_id,
+)
+from app.services.csv_export import _SafeWriter
+
+_DEBIT_NORMAL = {AccountType.ASSET, AccountType.EXPENSE, AccountType.COGS}
+_EXPENSE_TYPES = (AccountType.EXPENSE, AccountType.COGS)
+ZERO = Decimal("0")
+
+
+def _dec(v) -> Decimal:
+    return _q(Decimal(str(v or 0)))
+
+
+def _f(v) -> float:
+    return float(_q(Decimal(str(v or 0))))
+
+
+# ── base queries ─────────────────────────────────────────────────────────
+
+
+def _account_totals(
+    db: Session, acct_type: AccountType, start: Optional[date], end: Optional[date]
+) -> list[dict]:
+    """Per-account natural-balance totals (mirror of the balance sheet's
+    helper, kept here so the statements never depend on a route module)."""
+    q = (
+        db.query(
+            Account.id,
+            Account.name,
+            Account.account_number,
+            sqlfunc.coalesce(sqlfunc.sum(TransactionLine.debit), 0),
+            sqlfunc.coalesce(sqlfunc.sum(TransactionLine.credit), 0),
+        )
+        .select_from(Transaction)
+        .join(TransactionLine, TransactionLine.transaction_id == Transaction.id)
+        .join(Account, TransactionLine.account_id == Account.id)
+        .filter(Account.account_type == acct_type)
+    )
+    if start is not None:
+        q = q.filter(Transaction.date >= start)
+    if end is not None:
+        q = q.filter(Transaction.date <= end)
+    rows = []
+    for acct_id, name, number, dr, cr in q.group_by(
+        Account.id, Account.name, Account.account_number
+    ).all():
+        dr, cr = Decimal(str(dr)), Decimal(str(cr))
+        amount = (dr - cr) if acct_type in _DEBIT_NORMAL else (cr - dr)
+        rows.append(
+            {
+                "account_id": acct_id,
+                "account_name": name,
+                "account_number": number,
+                "amount": _f(amount),
+            }
+        )
+    rows.sort(key=lambda r: (r["account_number"] or "", r["account_name"]))
+    return rows
+
+
+def _class_totals(
+    db: Session,
+    acct_types: tuple,
+    start: Optional[date],
+    end: Optional[date],
+    account_id: Optional[int] = None,
+) -> list[tuple]:
+    """(class_id, account_id, account_name, account_number, account_type,
+    debit, credit) grouped by the fund a line belongs to."""
+    uncat = uncategorized_class_id(db)
+    cls = class_attribution(uncat).label("cls")
+    q = (
+        db.query(
+            cls,
+            Account.id,
+            Account.name,
+            Account.account_number,
+            Account.account_type,
+            sqlfunc.coalesce(sqlfunc.sum(TransactionLine.debit), 0),
+            sqlfunc.coalesce(sqlfunc.sum(TransactionLine.credit), 0),
+        )
+        .select_from(Transaction)
+        .join(TransactionLine, TransactionLine.transaction_id == Transaction.id)
+        .join(Account, TransactionLine.account_id == Account.id)
+    )
+    if account_id is not None:
+        q = q.filter(TransactionLine.account_id == account_id)
+    else:
+        q = q.filter(Account.account_type.in_(acct_types))
+    if start is not None:
+        q = q.filter(Transaction.date >= start)
+    if end is not None:
+        q = q.filter(Transaction.date <= end)
+    return q.group_by(
+        cls, Account.id, Account.name, Account.account_number, Account.account_type
+    ).all()
+
+
+def _income_by_restriction(
+    db: Session, start: Optional[date], end: Optional[date]
+) -> tuple[Decimal, Decimal, dict]:
+    """(without, with, per-account {id: {name, number, without, with}})."""
+    restricted = restricted_class_ids(db)
+    per: dict[int, dict] = {}
+    tot_without = tot_with = ZERO
+    for cls_id, acct_id, name, number, _t, dr, cr in _class_totals(
+        db, (AccountType.INCOME,), start, end
+    ):
+        amt = Decimal(str(cr)) - Decimal(str(dr))
+        row = per.setdefault(
+            acct_id,
+            {
+                "account_id": acct_id,
+                "account_name": name,
+                "account_number": number,
+                "without": ZERO,
+                "with": ZERO,
+            },
+        )
+        if cls_id in restricted:
+            row["with"] += amt
+            tot_with += amt
+        else:
+            row["without"] += amt
+            tot_without += amt
+    return tot_without, tot_with, per
+
+
+def _net_releases(db: Session, start: Optional[date], end: Optional[date]) -> Decimal:
+    """Net debits on Net Assets With Donor Restrictions in the period —
+    releases, less any voided ones."""
+    with_id = get_net_assets_with_restriction_id(db)
+    q = (
+        db.query(
+            sqlfunc.coalesce(
+                sqlfunc.sum(TransactionLine.debit - TransactionLine.credit), 0
+            )
+        )
+        .select_from(Transaction)
+        .join(TransactionLine, TransactionLine.transaction_id == Transaction.id)
+        .filter(TransactionLine.account_id == with_id)
+    )
+    if start is not None:
+        q = q.filter(Transaction.date >= start)
+    if end is not None:
+        q = q.filter(Transaction.date <= end)
+    return _dec(q.scalar())
+
+
+# ── Statement of Financial Position ──────────────────────────────────────
+
+
+def statement_of_financial_position(db: Session, as_of: date) -> dict:
+    with_id = get_net_assets_with_restriction_id(db)
+    without_id = get_net_assets_without_restriction_id(db)
+    assets = _account_totals(db, AccountType.ASSET, None, as_of)
+    liabilities = _account_totals(db, AccountType.LIABILITY, None, as_of)
+    equity = _account_totals(db, AccountType.EQUITY, None, as_of)
+
+    real = {r["account_id"]: Decimal(str(r["amount"])) for r in equity}
+    other_equity = [r for r in equity if r["account_id"] not in (with_id, without_id)]
+    other_total = sum((Decimal(str(r["amount"])) for r in other_equity), ZERO)
+
+    income_without, income_with, _ = _income_by_restriction(db, None, as_of)
+    expenses = sum(
+        (
+            Decimal(str(r["amount"]))
+            for r in _account_totals(db, AccountType.EXPENSE, None, as_of)
+        ),
+        ZERO,
+    ) + sum(
+        (
+            Decimal(str(r["amount"]))
+            for r in _account_totals(db, AccountType.COGS, None, as_of)
+        ),
+        ZERO,
+    )
+    without_composed = real.get(without_id, ZERO) + income_without - expenses
+    with_composed = real.get(with_id, ZERO) + income_with
+
+    with_acct = db.get(Account, with_id)
+    without_acct = db.get(Account, without_id)
+    net_assets = list(other_equity) + [
+        {
+            "account_id": without_id,
+            "account_name": without_acct.name,
+            "account_number": without_acct.account_number,
+            "amount": _f(without_composed),
+            "detail": {
+                "opening": _f(real.get(without_id, ZERO)),
+                "current_activity": _f(income_without - expenses),
+            },
+        },
+        {
+            "account_id": with_id,
+            "account_name": with_acct.name,
+            "account_number": with_acct.account_number,
+            "amount": _f(with_composed),
+            "detail": {
+                "opening": _f(real.get(with_id, ZERO)),
+                "current_activity": _f(income_with),
+            },
+        },
+    ]
+    total_assets = sum((Decimal(str(r["amount"])) for r in assets), ZERO)
+    total_liabilities = sum((Decimal(str(r["amount"])) for r in liabilities), ZERO)
+    net_without = other_total + without_composed
+    return {
+        "as_of_date": as_of.isoformat(),
+        "assets": assets,
+        "liabilities": liabilities,
+        "net_assets": net_assets,
+        "total_assets": _f(total_assets),
+        "total_liabilities": _f(total_liabilities),
+        "net_assets_without": _f(net_without),
+        "net_assets_with": _f(with_composed),
+        "total_net_assets": _f(net_without + with_composed),
+        "total_liabilities_and_net_assets": _f(
+            total_liabilities + net_without + with_composed
+        ),
+    }
+
+
+# ── Statement of Activities ──────────────────────────────────────────────
+
+
+def statement_of_activities(db: Session, start: date, end: date) -> dict:
+    inc_without, inc_with, per = _income_by_restriction(db, start, end)
+    revenue = [
+        {
+            "account_id": r["account_id"],
+            "account_name": r["account_name"],
+            "account_number": r["account_number"],
+            "without": _f(r["without"]),
+            "with": _f(r["with"]),
+            "total": _f(r["without"] + r["with"]),
+        }
+        for r in sorted(
+            per.values(), key=lambda r: (r["account_number"] or "", r["account_name"])
+        )
+    ]
+    releases = _net_releases(db, start, end)
+    expense_rows = _account_totals(db, AccountType.COGS, start, end) + _account_totals(
+        db, AccountType.EXPENSE, start, end
+    )
+    expenses = [
+        {
+            "account_id": r["account_id"],
+            "account_name": r["account_name"],
+            "account_number": r["account_number"],
+            "without": r["amount"],
+            "with": 0.0,
+            "total": r["amount"],
+        }
+        for r in expense_rows
+    ]
+    total_expenses = sum((Decimal(str(r["amount"])) for r in expense_rows), ZERO)
+    change_without = inc_without + releases - total_expenses
+    change_with = inc_with - releases
+    return {
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "revenue": revenue,
+        "releases": {"without": _f(releases), "with": _f(-releases), "total": 0.0},
+        "expenses": expenses,
+        "totals": {
+            "revenue_without": _f(inc_without),
+            "revenue_with": _f(inc_with),
+            "revenue": _f(inc_without + inc_with),
+            "releases": _f(releases),
+            "expenses": _f(total_expenses),
+            "change_without": _f(change_without),
+            "change_with": _f(change_with),
+            "change_total": _f(change_without + change_with),
+        },
+    }
+
+
+# ── Fund balances ────────────────────────────────────────────────────────
+
+
+def _periodized_by_class(
+    db: Session, amount_expr, filters: list, start: date, end: date
+) -> dict[int, tuple[Decimal, Decimal]]:
+    """{class_id: (before start, within period)} for a signed line amount."""
+    uncat = uncategorized_class_id(db)
+    cls = class_attribution(uncat).label("cls")
+    before = sqlfunc.coalesce(
+        sqlfunc.sum(case((Transaction.date < start, amount_expr), else_=0)), 0
+    )
+    within = sqlfunc.coalesce(
+        sqlfunc.sum(
+            case(
+                ((Transaction.date >= start) & (Transaction.date <= end), amount_expr),
+                else_=0,
+            )
+        ),
+        0,
+    )
+    q = (
+        db.query(cls, before, within)
+        .select_from(Transaction)
+        .join(TransactionLine, TransactionLine.transaction_id == Transaction.id)
+        .join(Account, TransactionLine.account_id == Account.id)
+        .filter(Transaction.date <= end, *filters)
+        .group_by(cls)
+    )
+    return {int(c): (_dec(b), _dec(w)) for c, b, w in q.all()}
+
+
+def fund_balances(db: Session, start: date, end: date) -> dict:
+    restricted = restricted_class_ids(db)
+    with_id = get_net_assets_with_restriction_id(db)
+    income = _periodized_by_class(
+        db,
+        TransactionLine.credit - TransactionLine.debit,
+        [Account.account_type == AccountType.INCOME],
+        start,
+        end,
+    )
+    spent = _periodized_by_class(
+        db,
+        TransactionLine.debit - TransactionLine.credit,
+        [Account.account_type.in_(_EXPENSE_TYPES)],
+        start,
+        end,
+    )
+    released = _periodized_by_class(
+        db,
+        TransactionLine.debit - TransactionLine.credit,
+        [TransactionLine.account_id == with_id],
+        start,
+        end,
+    )
+    names = {c.id: c for c in db.query(TxnClass).all()}
+    funds = []
+    unassigned_before = unassigned_within = ZERO
+    for cls_id in sorted(
+        set(income) | set(spent) | set(released),
+        key=lambda i: names[i].name.lower() if i in names else "",
+    ):
+        if cls_id in restricted:
+            inc_b, inc_w = income.get(cls_id, (ZERO, ZERO))
+            sp_b, sp_w = spent.get(cls_id, (ZERO, ZERO))
+            rl_b, rl_w = released.get(cls_id, (ZERO, ZERO))
+            beginning = inc_b - rl_b
+            ending = beginning + inc_w - rl_w
+            fund = names[cls_id]
+            funds.append(
+                {
+                    "class_id": cls_id,
+                    "class_name": fund.name,
+                    "restriction": fund.restriction,
+                    "donor_name": fund.donor_name,
+                    "purpose": fund.purpose,
+                    "beginning": _f(beginning),
+                    "contributions": _f(inc_w),
+                    "expenses": _f(sp_w),
+                    "releases": _f(rl_w),
+                    "ending": _f(ending),
+                    "unreleased": _f((sp_b + sp_w) - (rl_b + rl_w)),
+                }
+            )
+        else:
+            # 3400 activity carrying no restricted fund (a manual entry, or
+            # a fund whose restriction was removed later)
+            rl_b, rl_w = released.get(cls_id, (ZERO, ZERO))
+            unassigned_before -= rl_b
+            unassigned_within -= rl_w
+    for fund in names.values():
+        if fund.id in restricted and fund.id not in {f["class_id"] for f in funds}:
+            funds.append(
+                {
+                    "class_id": fund.id,
+                    "class_name": fund.name,
+                    "restriction": fund.restriction,
+                    "donor_name": fund.donor_name,
+                    "purpose": fund.purpose,
+                    "beginning": 0.0,
+                    "contributions": 0.0,
+                    "expenses": 0.0,
+                    "releases": 0.0,
+                    "ending": 0.0,
+                    "unreleased": 0.0,
+                }
+            )
+    funds.sort(key=lambda f: f["class_name"].lower())
+    unassigned = None
+    if unassigned_before or unassigned_within:
+        unassigned = {
+            "class_id": None,
+            "class_name": "Unassigned",
+            "beginning": _f(unassigned_before),
+            "contributions": 0.0,
+            "expenses": 0.0,
+            "releases": _f(-unassigned_within),
+            "ending": _f(unassigned_before + unassigned_within),
+            "unreleased": 0.0,
+        }
+    rows = funds + ([unassigned] if unassigned else [])
+    totals = {
+        k: _f(sum((Decimal(str(r[k])) for r in rows), ZERO))
+        for k in (
+            "beginning",
+            "contributions",
+            "expenses",
+            "releases",
+            "ending",
+            "unreleased",
+        )
+    }
+    return {
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "funds": funds,
+        "unassigned": unassigned,
+        "totals": totals,
+    }
+
+
+# ── Statement of Functional Expenses ─────────────────────────────────────
+
+
+def functional_expenses(db: Session, start: date, end: date) -> dict:
+    uncat = uncategorized_class_id(db)
+    cls = class_attribution(uncat)
+    fn = sqlfunc.coalesce(TransactionLine.function, TxnClass.default_function).label(
+        "fn"
+    )
+    q = (
+        db.query(
+            Account.id,
+            Account.name,
+            Account.account_number,
+            fn,
+            cls.label("cls"),
+            sqlfunc.coalesce(
+                sqlfunc.sum(TransactionLine.debit - TransactionLine.credit), 0
+            ),
+        )
+        .select_from(Transaction)
+        .join(TransactionLine, TransactionLine.transaction_id == Transaction.id)
+        .join(Account, TransactionLine.account_id == Account.id)
+        .outerjoin(TxnClass, TxnClass.id == cls)
+        .filter(
+            Account.account_type.in_(_EXPENSE_TYPES),
+            Transaction.date >= start,
+            Transaction.date <= end,
+        )
+        .group_by(Account.id, Account.name, Account.account_number, fn, "cls")
+    )
+    names = {c.id: c.name for c in db.query(TxnClass.id, TxnClass.name).all()}
+    rows: dict[int, dict] = {}
+    programs: dict[int, Decimal] = {}
+    cols = list(FUNCTIONS) + ["unassigned"]
+    for acct_id, name, number, function, cls_id, amt in q.all():
+        amt = Decimal(str(amt or 0))
+        row = rows.setdefault(
+            acct_id,
+            {
+                "account_id": acct_id,
+                "account_name": name,
+                "account_number": number,
+                **{c: ZERO for c in cols},
+                "total": ZERO,
+            },
+        )
+        col = function if function in FUNCTIONS else "unassigned"
+        row[col] += amt
+        row["total"] += amt
+        if col == "program":
+            programs[cls_id] = programs.get(cls_id, ZERO) + amt
+    out_rows = []
+    for r in sorted(
+        rows.values(), key=lambda r: (r["account_number"] or "", r["account_name"])
+    ):
+        out_rows.append(
+            {k: (_f(v) if isinstance(v, Decimal) else v) for k, v in r.items()}
+        )
+    totals = {c: _f(sum((r[c] for r in rows.values()), ZERO)) for c in cols}
+    totals["total"] = _f(sum((r["total"] for r in rows.values()), ZERO))
+    return {
+        "start_date": start.isoformat(),
+        "end_date": end.isoformat(),
+        "rows": out_rows,
+        "totals": totals,
+        "programs": [
+            {"class_id": cid, "class_name": names.get(cid, "Unknown"), "amount": _f(a)}
+            for cid, a in sorted(
+                programs.items(), key=lambda kv: names.get(kv[0], "").lower()
+            )
+            if a
+        ],
+    }
+
+
+# ── CSV ──────────────────────────────────────────────────────────────────
+
+
+def _csv(header: list, rows: list[list]) -> str:
+    buf = io.StringIO()
+    w = _SafeWriter(buf)
+    w.writerow(header)
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue()
+
+
+def financial_position_csv(data: dict) -> str:
+    rows = []
+    for label, key, total_key in (
+        ("Assets", "assets", "total_assets"),
+        ("Liabilities", "liabilities", "total_liabilities"),
+        ("Net Assets", "net_assets", "total_net_assets"),
+    ):
+        rows.append([label, ""])
+        for r in data[key]:
+            rows.append([f"  {r['account_name']}", f"{r['amount']:.2f}"])
+        rows.append([f"Total {label}", f"{data[total_key]:.2f}"])
+    rows.append(
+        ["Liabilities + Net Assets", f"{data['total_liabilities_and_net_assets']:.2f}"]
+    )
+    return _csv(["", f"As of {data['as_of_date']}"], rows)
+
+
+def activities_csv(data: dict) -> str:
+    t = data["totals"]
+    cmp = data.get("compare") == "prior_year"
+    pt = data.get("prior", {}).get("totals", {}) if cmp else {}
+
+    def ext(total, prior):
+        if not cmp:
+            return []
+        return [f"{prior or 0:.2f}", f"{(total or 0) - (prior or 0):.2f}"]
+
+    blank = [""] * 2 if cmp else []
+    rows = [["Revenue & Support", "", "", ""] + blank]
+    for r in data["revenue"]:
+        rows.append(
+            [
+                f"  {r['account_name']}",
+                f"{r['without']:.2f}",
+                f"{r['with']:.2f}",
+                f"{r['total']:.2f}",
+            ]
+            + ext(r["total"], r.get("prior_total"))
+        )
+    rows.append(
+        [
+            "Total Revenue & Support",
+            f"{t['revenue_without']:.2f}",
+            f"{t['revenue_with']:.2f}",
+            f"{t['revenue']:.2f}",
+        ]
+        + ext(t["revenue"], pt.get("revenue"))
+    )
+    rl = data["releases"]
+    rows.append(
+        [
+            "Net assets released from restrictions",
+            f"{rl['without']:.2f}",
+            f"{rl['with']:.2f}",
+            "0.00",
+        ]
+        + ext(0, 0)
+    )
+    rows.append(["Expenses", "", "", ""] + blank)
+    for r in data["expenses"]:
+        rows.append(
+            [
+                f"  {r['account_name']}",
+                f"{r['without']:.2f}",
+                "0.00",
+                f"{r['total']:.2f}",
+            ]
+            + ext(r["total"], r.get("prior_total"))
+        )
+    rows.append(
+        ["Total Expenses", f"{t['expenses']:.2f}", "0.00", f"{t['expenses']:.2f}"]
+        + ext(t["expenses"], pt.get("expenses"))
+    )
+    rows.append(
+        [
+            "Change in Net Assets",
+            f"{t['change_without']:.2f}",
+            f"{t['change_with']:.2f}",
+            f"{t['change_total']:.2f}",
+        ]
+        + ext(t["change_total"], pt.get("change_total"))
+    )
+    header = ["", "Without Donor Restrictions", "With Donor Restrictions", "Total"]
+    if cmp:
+        header += [f"Prior year ({data['prior']['start_date'][:4]})", "Change"]
+    return _csv(header, rows)
+
+
+def fund_balances_csv(data: dict) -> str:
+    keys = (
+        "beginning",
+        "contributions",
+        "expenses",
+        "releases",
+        "ending",
+        "unreleased",
+    )
+    rows = [[f["class_name"]] + [f"{f[k]:.2f}" for k in keys] for f in data["funds"]]
+    if data["unassigned"]:
+        rows.append(
+            [data["unassigned"]["class_name"]]
+            + [f"{data['unassigned'][k]:.2f}" for k in keys]
+        )
+    rows.append(["Total"] + [f"{data['totals'][k]:.2f}" for k in keys])
+    return _csv(
+        [
+            "Fund",
+            "Beginning",
+            "Contributions",
+            "Spent",
+            "Released",
+            "Ending",
+            "Unreleased",
+        ],
+        rows,
+    )
+
+
+def functional_expenses_csv(data: dict) -> str:
+    # Form 990 Part IX column order: (A) Total, (B) Program services,
+    # (C) Management and general, (D) Fundraising; unassigned last so a
+    # preparer sees what still needs a function.
+    keys = ("total", "program", "management", "fundraising", "unassigned")
+    cmp = data.get("compare") == "prior_year"
+
+    def ext(r):
+        if not cmp:
+            return []
+        return [f"{r.get('prior_total', 0):.2f}", f"{r.get('change', 0):.2f}"]
+
+    rows = [
+        [f"{r['account_number'] or ''} {r['account_name']}".strip()]
+        + [f"{r[k]:.2f}" for k in keys]
+        + ext(r)
+        for r in data["rows"]
+    ]
+    pt = data.get("prior", {}).get("totals", {}) if cmp else {}
+    total_ext = (
+        [
+            f"{pt.get('total', 0):.2f}",
+            f"{data['totals']['total'] - pt.get('total', 0):.2f}",
+        ]
+        if cmp
+        else []
+    )
+    rows.append(["Total"] + [f"{data['totals'][k]:.2f}" for k in keys] + total_ext)
+    header = [
+        "Expense",
+        "Total (A)",
+        "Program services (B)",
+        "Management and general (C)",
+        "Fundraising (D)",
+        "Unassigned",
+    ]
+    if cmp:
+        header += [f"Prior year ({data['prior']['start_date'][:4]})", "Change"]
+    return _csv(header, rows)
+
+
+# ── Prior-year comparison ────────────────────────────────────────────────
+
+
+def _shift_year(d: date) -> date:
+    try:
+        return d.replace(year=d.year - 1)
+    except ValueError:  # Feb 29
+        return d.replace(year=d.year - 1, day=28)
+
+
+def _merge_prior(
+    rows: list[dict], prior_rows: list[dict], key: str, value: str
+) -> list[dict]:
+    """Attach `prior_<value>` and `change` to each row, adding rows that only
+    exist in the prior period, so the two columns share one account list."""
+    prior_by = {r[key]: r for r in prior_rows}
+    out = []
+    seen = set()
+    for r in rows:
+        pr = prior_by.get(r[key])
+        prior_val = pr[value] if pr else 0.0
+        out.append(
+            {
+                **r,
+                f"prior_{value}": prior_val,
+                "change": _f(Decimal(str(r[value])) - Decimal(str(prior_val))),
+            }
+        )
+        seen.add(r[key])
+    for r in prior_rows:
+        if r[key] in seen:
+            continue
+        blank = {k: (0.0 if isinstance(v, float) else v) for k, v in r.items()}
+        out.append(
+            {**blank, f"prior_{value}": r[value], "change": _f(-Decimal(str(r[value])))}
+        )
+    out.sort(key=lambda r: (r.get("account_number") or "", r.get("account_name") or ""))
+    return out
+
+
+def statement_of_activities_compared(db: Session, start: date, end: date) -> dict:
+    """The statement with a prior-year column: same dates one year earlier."""
+    cur = statement_of_activities(db, start, end)
+    p_start, p_end = _shift_year(start), _shift_year(end)
+    prior = statement_of_activities(db, p_start, p_end)
+    cur["revenue"] = _merge_prior(
+        cur["revenue"], prior["revenue"], "account_id", "total"
+    )
+    cur["expenses"] = _merge_prior(
+        cur["expenses"], prior["expenses"], "account_id", "total"
+    )
+    cur["prior"] = {
+        "start_date": p_start.isoformat(),
+        "end_date": p_end.isoformat(),
+        "totals": prior["totals"],
+        "releases": prior["releases"],
+    }
+    cur["compare"] = "prior_year"
+    return cur
+
+
+def functional_expenses_compared(db: Session, start: date, end: date) -> dict:
+    cur = functional_expenses(db, start, end)
+    p_start, p_end = _shift_year(start), _shift_year(end)
+    prior = functional_expenses(db, p_start, p_end)
+    cur["rows"] = _merge_prior(cur["rows"], prior["rows"], "account_id", "total")
+    cur["prior"] = {
+        "start_date": p_start.isoformat(),
+        "end_date": p_end.isoformat(),
+        "totals": prior["totals"],
+    }
+    cur["compare"] = "prior_year"
+    return cur

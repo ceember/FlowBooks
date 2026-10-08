@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>{{ doc_label }}</title><style>
+body { font-family: Arial, sans-serif; font-size: 14px; color: #333; }
+.header { background: #003366; color: white; padding: 20px; text-align: center; }
+.content { padding: 20px; }
+.amount { font-size: 24px; font-weight: bold; color: #003366; }
+.footer { padding: 20px; font-size: 12px; color: #777; border-top: 1px solid #ddd; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th { background: #f0f0f0; padding: 8px; text-align: left; border-bottom: 2px solid #003366; }
+td { padding: 8px; border-bottom: 1px solid #eee; }
+</style></head>
+<body>
+<div class="header">
+    <h1 style="margin:0;">{{ company.get('company_name', 'Our Company') }}</h1>
+</div>
+<div class="content">
+    <p>Dear {{ inv.customer.name if inv.customer else terms('Customer') }},</p>
+    <p>Please find attached <strong>{{ doc_label }} #{{ inv.invoice_number }}</strong>.</p>
+
+    <table>
+        <tr><th>{{ doc_label }} #</th><td>{{ inv.invoice_number }}</td></tr>
+        <tr><th>Date</th><td>{{ inv.date }}</td></tr>
+        <tr><th>Due Date</th><td>{{ inv.due_date }}</td></tr>
+        <tr><th>Terms</th><td>{{ inv.terms or 'Net 30' }}</td></tr>
+    </table>
+
+    {% set cur = (inv.currency or '')|upper %}
+    <p class="amount">Amount Due: {% if cur and cur != (company.get('home_currency') or 'USD')|upper %}{{ cur }} {% else %}${% endif %}{{ "%.2f"|format(inv.balance_due|float) }}</p>
+
+    {% if pay_url %}
+    <p style="margin: 20px 0; text-align: center;">
+        <a href="{{ pay_url }}" style="display: inline-block; padding: 12px 32px; background: #003366; color: white; text-decoration: none; border-radius: 4px; font-weight: bold; font-size: 16px;">Pay Online</a>
+    </p>
+    {% endif %}
+
+    {% if inv.notes %}
+    <p style="color:#666;">{{ inv.notes }}</p>
+    {% endif %}
+
+    {# The default invoice notes already say it; say it once. #}
+    {% set thanks = "Thank you for your support." if terms.is_nonprofit else "Thank you for your business." %}
+    {% if thanks | lower not in (inv.notes or '') | lower %}<p>{{ thanks }}</p>{% endif %}
+</div>
+<div class="footer">
+    <p>{{ company.get('company_name', '') }}<br>
+    {{ company.get('company_address1', '') }} {{ company.get('company_city', '') }}
+    {{ company.get('company_state', '') }} {{ company.get('company_zip', '') }}<br>
+    {{ company.get('company_phone', '') }} | {{ company.get('company_email', '') }}</p>
+</div>
+</body>
+</html>

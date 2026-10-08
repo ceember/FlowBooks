@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Giving statement</title>
+<style>
+    @page { size: letter; margin: 0.6in 0.75in; }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.4; }
+    .statement { page-break-after: always; }
+    .statement:last-child { page-break-after: auto; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .company-info { font-size: 9pt; color: #4a4a6a; }
+    .company-name { font-size: 16pt; font-weight: 700; color: #003366; margin-bottom: 4px; }
+    .company-logo { display: block; max-height: 60px; max-width: 200px; margin-bottom: 6px; }
+    .doc-title { text-align: right; }
+    .doc-title h1 { font-size: 20pt; font-weight: 700; color: #003366; margin: 0; letter-spacing: 0.05em; }
+    .as-of { font-size: 10pt; color: #666; margin-top: 4px; }
+    .customer-block { margin-bottom: 16px; padding: 12px; background: #f7f9fb; border: 1px solid #e0e0e0; }
+    .customer-name { font-size: 14pt; font-weight: 700; color: #003366; margin-bottom: 4px; }
+    .customer-info { font-size: 9pt; color: #333; }
+    table.activity { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    table.activity th { background: #003366; color: white; padding: 5px 8px; font-size: 8pt; text-transform: uppercase; text-align: left; letter-spacing: 0.03em; }
+    table.activity th.r { text-align: right; }
+    table.activity td { padding: 5px 8px; font-size: 9pt; border-bottom: 1px solid #e0e0e0; }
+    table.activity td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    .summary { float: right; width: 300px; margin-top: 8px; }
+    .summary td { padding: 3px 8px; font-size: 10pt; }
+    .summary td.r { text-align: right; font-variant-numeric: tabular-nums; }
+    .summary .label { font-weight: 700; color: #4a4a6a; }
+    .summary .grand { font-size: 13pt; font-weight: 700; color: #003366; border-top: 2px solid #003366; padding-top: 4px; }
+    .irs { clear: both; margin-top: 18px; padding: 10px 12px; border: 1px solid #999; font-size: 9pt; line-height: 1.45; }
+    h3 { font-size: 10pt; color: #003366; margin: 14px 0 4px; }
+    .footer { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; font-size: 7pt; color: #999; padding: 8px 0; }
+</style>
+</head>
+<body>
+{% for st in statements %}
+    <div class="statement">
+    <div class="header">
+        <div>
+            {% if company_logo_data_uri %}<img class="company-logo" src="{{ company_logo_data_uri }}" alt="">{% endif %}
+            <div class="company-name">{{ company.company_name }}</div>
+            <div class="company-info">
+                {% if company.company_address1 %}{{ company.company_address1 }}<br>{% endif %}
+                {% if company.company_city %}{{ company.company_city }}, {{ company.company_state }} {{ company.company_zip }}<br>{% endif %}
+                {% if company.company_phone %}{{ company.company_phone }}<br>{% endif %}
+                {% if company.company_email %}{{ company.company_email }}<br>{% endif %}
+                {% if company.company_tax_id %}EIN {{ company.company_tax_id }}{% endif %}
+            </div>
+        </div>
+        <div class="doc-title">
+            <h1>GIVING STATEMENT</h1>
+            <div class="as-of">Tax year {{ year }}</div>
+        </div>
+    </div>
+
+    <div class="customer-block">
+        <div class="customer-name">{{ st.customer.name }}</div>
+        <div class="customer-info">
+            {% if st.customer.bill_address1 %}{{ st.customer.bill_address1 }}<br>{% endif %}
+            {% if st.customer.bill_address2 %}{{ st.customer.bill_address2 }}<br>{% endif %}
+            {% if st.customer.bill_city %}{{ st.customer.bill_city }}, {{ st.customer.bill_state }} {{ st.customer.bill_zip }}{% endif %}
+        </div>
+    </div>
+
+    <h3>Contributions</h3>
+    <table class="activity">
+        <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th class="r">Amount</th><th class="r">Goods / services</th><th class="r">Deductible</th><th class="r">Running total</th></tr></thead>
+        <tbody>
+        {% set ns = namespace(running=0) %}
+        {% for g in st.cash %}
+            {% set ns.running = ns.running + (g.amount | float) %}
+            <tr>
+                <td>{{ g.date | fdate }}</td>
+                <td>{{ g.number or '' }}</td>
+                <td>{{ g.description or '' }}</td>
+                <td class="r">{{ g.amount | currency }}</td>
+                <td class="r">{% if g.fair_value_amount %}{{ g.fair_value_amount | currency }}{% endif %}</td>
+                <td class="r">{{ g.deductible | currency }}</td>
+                <td class="r">{{ ns.running | currency }}</td>
+            </tr>
+        {% else %}
+            <tr><td colspan="7">No cash contributions recorded for {{ year }}.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    {% if st.in_kind %}
+    <h3>Non-cash gifts</h3>
+    <table class="activity">
+        <thead><tr><th>Date</th><th>Reference</th><th>Property</th></tr></thead>
+        <tbody>
+        {% for g in st.in_kind %}
+            <tr><td>{{ g.date | fdate }}</td><td>{{ g.number }}</td><td>{% for ln in g.in_kind_lines %}{{ ln.description }}{% if not loop.last %}; {% endif %}{% endfor %}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <div style="font-size:8.5pt;color:#555;">Values of non-cash gifts are not stated; the donor determines fair market value.</div>
+    {% endif %}
+
+    <div class="summary">
+        <table>
+            <tr><td class="label">Total contributions</td><td class="r">{{ st.totals.amount | currency }}</td></tr>
+            <tr><td class="label">Less goods and services received</td><td class="r">{{ st.totals.fair_value | currency }}</td></tr>
+            <tr><td class="label grand">Deductible contributions</td><td class="r grand">{{ st.totals.deductible | currency }}</td></tr>
+        </table>
+    </div>
+
+    <div class="irs">{{ st.irs_text }}</div>
+    </div>
+{% endfor %}
+    <div class="footer">Generated by FlowBooks</div>
+</body>
+</html>

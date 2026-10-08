@@ -1,0 +1,203 @@
+# -*- mode: python ; coding: utf-8 -*-
+# PyInstaller spec for the native macOS build (.app bundle).
+#
+# STARTING POINT — adapted from packaging/windows/FlowBooks.spec and
+# not yet validated on real Apple hardware. Expected iteration areas:
+#   * WeasyPrint natives: on macOS these come from Homebrew (pango,
+#     fontconfig, gobject-introspection). PyInstaller's hooks usually pick
+#     the dylibs up automatically from the brew prefix; if PDF rendering
+#     fails in the frozen app, stage them explicitly like the Windows
+#     build stages its gtk-dlls.
+#   * pywebview uses the Cocoa/WebKit backend on macOS (pyobjc) — no
+#     pythonnet, no WebView2, one less runtime dependency than Windows.
+#   * Icon: assets/icon-256.png → .icns (see the workflow step).
+
+import os
+import subprocess
+
+from PyInstaller.utils.hooks import collect_submodules
+
+ROOT = os.path.abspath(os.path.join(SPECPATH, "..", ".."))
+
+
+def _tree(src_rel, dest):
+    """Recursively collect a repo directory as data files, skipping caches."""
+    out = []
+    src_root = os.path.join(ROOT, src_rel)
+    for dirpath, dirnames, filenames in os.walk(src_root):
+        dirnames[:] = [d for d in dirnames if d != "__pycache__"]
+        for fname in filenames:
+            if fname.endswith((".pyc", ".pyo")):
+                continue
+            full = os.path.join(dirpath, fname)
+            rel_dir = os.path.relpath(dirpath, src_root)
+            target = dest if rel_dir == "." else os.path.join(dest, rel_dir)
+            out.append((full, target))
+    return out
+
+
+def _brew_library(formula, filename):
+    """Resolve one required Homebrew dylib or fail the build loudly."""
+    prefix = subprocess.run(
+        ["brew", "--prefix", formula],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    path = os.path.join(prefix, "lib", filename)
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"required {formula} library not found: {path}")
+    return path
+
+
+datas = [
+    (os.path.join(ROOT, "index.html"), "."),
+    (os.path.join(ROOT, "alembic.ini"), "."),
+    (os.path.join(ROOT, "LICENSE"), "."),
+    (os.path.join(ROOT, "scripts", "repair-schema.py"), "scripts"),
+]
+datas += _tree("app/static", "app/static")
+datas += _tree("app/templates", "app/templates")
+# Alembic loads migration scripts as FILES at runtime (script_location) —
+# they must exist on disk in the bundle, not just inside the PYZ.
+datas += _tree("migrations", "migrations")
+
+# PyInstaller's WeasyPrint hook uses ctypes.util.find_library(), which does
+# not find Homebrew libraries on Apple Silicon. Seed the six libraries that
+# WeasyPrint dlopens; PyInstaller follows and rewrites their dependency
+# closure into Contents/Frameworks.
+binaries = [
+    (_brew_library("glib", "libgobject-2.0.0.dylib"), "."),
+    (_brew_library("pango", "libpango-1.0.dylib"), "."),
+    (_brew_library("pango", "libpangoft2-1.0.dylib"), "."),
+    (_brew_library("harfbuzz", "libharfbuzz.0.dylib"), "."),
+    (_brew_library("harfbuzz", "libharfbuzz-subset.0.dylib"), "."),
+    (_brew_library("fontconfig", "libfontconfig.1.dylib"), "."),
+]
+
+hiddenimports = (
+    collect_submodules("app")
+    + collect_submodules("uvicorn")
+    + collect_submodules("alembic")
+    + [
+        # pywebview's macOS backend (Cocoa/WebKit via pyobjc)
+        "webview.platforms.cocoa",
+        # alembic.ini logging config and desktop SQLite dialect
+        "logging.config",
+        "sqlalchemy.dialects.sqlite",
+        # WeasyPrint is imported lazily since #121 (so the suite runs on a
+        # machine without the native stack). PyInstaller's scanner does walk
+        # function-level imports, but the PDF engine is not something to
+        # leave to "usually" — name it, so its hook always fires.
+        "weasyprint",
+    ]
+)
+
+# Built-in OCR: Apple Vision via pyobjc (requirements-build.txt), imported
+# lazily inside VisionEngine._bridge — invisible to the scanner. Guarded so
+# a build env without the Vision wheels still bundles (tesseract fallback).
+for _mod in ("Vision", "Quartz", "objc", "Foundation"):
+    try:
+        hiddenimports += collect_submodules(_mod)
+    except Exception:
+        pass
+
+a = Analysis(
+    [os.path.join(ROOT, "desktop_launcher.py")],
+    pathex=[ROOT],
+    binaries=binaries,
+    datas=datas,
+    hiddenimports=hiddenimports,
+    excludes=["psycopg2", "psycopg2_binary", "PIL._imagingft", "PIL.ImageFont"],
+    noarchive=False,
+)
+
+# Fail at build time if Pillow reintroduces an incompatible text-shaping library.
+_harfbuzz = [(dest, src) for dest, src, _kind in a.binaries
+             if os.path.basename(dest) == "libharfbuzz.0.dylib"]
+if len(_harfbuzz) != 1 or "PIL" in _harfbuzz[0][0].split(os.sep):
+    raise SystemExit(f"Expected one Homebrew HarfBuzz library, found {_harfbuzz}")
+
+pyz = PYZ(a.pure)
+
+# Pillow ships private font libraries. Its top-level compatibility symlinks
+# must not replace the Homebrew ABI used by Pango and HarfBuzz subset.
+for formula, soname in (
+    ("harfbuzz", "libharfbuzz.0.dylib"),
+    ("freetype", "libfreetype.6.dylib"),
+):
+    a.binaries = [entry for entry in a.binaries if entry[0] != soname]
+    a.datas = [entry for entry in a.datas if entry[0] != soname]
+    a.binaries.append((soname, os.path.realpath(_brew_library(formula, soname)), "BINARY"))
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    exclude_binaries=True,
+    name="FlowBooks",
+    console=False,
+    icon=os.path.join(SPECPATH, "flowbooks.icns"),
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    name="FlowBooks",
+)
+
+def _build_sha() -> str:
+    sha = os.environ.get("APP_BUILD_SHA", "").strip()
+    if not sha:
+        try:
+            import subprocess
+
+            sha = subprocess.run(
+                ["git", "-C", ROOT, "rev-parse", "HEAD"],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+        except Exception:
+            sha = ""
+    return sha[:12] or "unknown"
+
+
+def _bundle_version() -> str:
+    return f"{os.environ.get('APP_VERSION', '0.0.0')}+{_build_sha()}"
+
+
+app = BUNDLE(
+    coll,
+    name="FlowBooks.app",
+    icon=os.path.join(SPECPATH, "flowbooks.icns"),
+    bundle_identifier="local.aios.flowbooks",
+    info_plist={
+        "CFBundleShortVersionString": os.environ.get("APP_VERSION", "0.0.0"),
+        # Build identity (testing-repo #28): two builds of one release must
+        # be distinguishable from the bundle alone. CI passes APP_BUILD_SHA;
+        # a local build reads the checkout. The workflow refuses a bundle
+        # whose CFBundleVersion is just the short version.
+        "CFBundleVersion": _bundle_version(),
+        # Retained native PDF libraries declare a macOS 26.0 floor.
+        # Older macOS support requires rebuilding those dependencies.
+        "LSMinimumSystemVersion": "26.0",
+        "LSArchitecturePriority": ["arm64"],
+        "NSHighResolutionCapable": True,
+        # The app runs a local web server for its own UI
+        "NSLocalNetworkUsageDescription": (
+            "FlowBooks runs a loopback server for its desktop interface."
+        ),
+        # TCC usage strings. macOS shows these in the consent prompt the
+        # first time the app writes to a protected folder; without them
+        # the prompt has no explanation and looks like malware asking.
+        # Save PDF writes under Documents; Download Backup writes to
+        # Downloads. Keep them in step with desktop_launcher._reports_dir
+        # and save_backup_file.
+        "NSDocumentsFolderUsageDescription": (
+            "FlowBooks saves the reports you export to "
+            "Documents/FlowBooks/Reports."
+        ),
+        "NSDownloadsFolderUsageDescription": (
+            "FlowBooks saves company backups to your Downloads folder."
+        ),
+    },
+)

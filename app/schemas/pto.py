@@ -1,0 +1,86 @@
+from datetime import date
+from typing import Optional
+from pydantic import BaseModel
+
+from app.models.pto import AccrualMethod, PTOType
+from app.schemas.common import StrictModel
+
+
+# --- Policies --------------------------------------------------------------
+class PTOPolicyCreate(StrictModel):
+    name: str
+    pto_type: PTOType = PTOType.VACATION
+    accrual_method: AccrualMethod = AccrualMethod.PER_PAY_PERIOD
+    accrual_rate: float = 0
+    max_carryover: Optional[float] = None
+    max_balance: Optional[float] = None
+    # Dollar liability
+    accrue_liability: bool = False
+    valuation: str = "current_rate"  # current_rate | average_rate
+    expense_account_id: Optional[int] = None
+    liability_account_id: Optional[int] = None
+    pays_out_on_termination: bool = False
+
+
+class PTOPolicyResponse(BaseModel):
+    id: int
+    name: str
+    pto_type: str
+    accrual_method: str
+    accrual_rate: float = 0
+    max_carryover: Optional[float] = None
+    max_balance: Optional[float] = None
+    accrue_liability: bool = False
+    valuation: str = "current_rate"
+    expense_account_id: Optional[int] = None
+    liability_account_id: Optional[int] = None
+    pays_out_on_termination: bool = False
+    is_active: bool = True
+    model_config = {"from_attributes": True}
+
+
+# --- Accruals --------------------------------------------------------------
+class PTOAccrualCreate(StrictModel):
+    employee_id: int
+    policy_id: int
+    balance: float = 0
+
+
+class PTOAccrualResponse(BaseModel):
+    id: int
+    employee_id: int
+    policy_id: int
+    balance: float = 0
+    accrued_ytd: float = 0
+    used_ytd: float = 0
+    dollar_balance: float = 0
+    model_config = {"from_attributes": True}
+
+
+# --- Requests --------------------------------------------------------------
+class PTORequestCreate(StrictModel):
+    employee_id: int
+    start_date: date
+    end_date: date
+    hours: float = 0
+    pto_type: PTOType = PTOType.VACATION
+    notes: Optional[str] = None
+
+
+class PTORequestDecision(StrictModel):
+    status: str  # "approved" or "denied"
+    approver_id: Optional[int] = None
+
+
+class PTORequestResponse(BaseModel):
+    id: int
+    employee_id: int
+    employee_name: Optional[str] = None
+    start_date: date
+    end_date: date
+    hours: float = 0
+    pto_type: str
+    status: str
+    approver_id: Optional[int] = None
+    notes: Optional[str] = None
+    model_config = {"from_attributes": True}

@@ -1,0 +1,493 @@
+/* ============================================================================
+ * FlowBooks — Dark Mode Skin
+ * Feature 12: Toggle between QB2003 Blue theme and dark mode
+ * Overrides CSS custom properties when [data-theme="dark"] is set on <html>
+ * ============================================================================ */
+
+[data-theme="dark"] {
+    /* the bright chart colours: every one clears 3:1 on the dark card */
+    --chart-green: #00c48f;
+    --chart-red: #ff6b6b;
+    --chart-orange: #ffa94d;
+    --chart-amber: #ff922b;
+    --chart-crimson: #ff4757;
+    --chart-blue: #5b7fff;
+    --chart-purple: #a855f7;
+    --chart-pink: #e879f9;
+    --chart-sky: #38bdf8;
+    --chart-yellow: #facc15;
+    /* Navy becomes a bright readable blue in dark mode — used for headings, card values */
+    --qb-navy:        #8ab4e0;
+    --qb-navy-dark:   #6a9cc8;
+    --qb-navy-mid:    #5b9bd5;
+    --qb-blue:        #4a7fb5;
+    --qb-blue-light:  #5b9bd5;
+    --qb-blue-accent: #6bb3e8;
+    --text-link:      #6bb3e8;   /* 7.15:1 on the dark panel */
+    --text-success:   #4ade80;   /* 9.32:1 — the light theme's #166534 is 2.28 here */
+    --text-danger:    #e46969;   /* = --qb-red: 5.05:1 on the panel */
+    --text-warning:   #e0a840;   /* 7.62:1 on the panel */
+    --aging-30:       #e0a840;   /* 7.62:1 on the card */
+    --aging-60:       #f97316;   /* 5.80 */
+    --qb-teal:        #7abfbf;
+    --qb-green:       #4caf7a;
+    --qb-green-dark:  #3d9065;
+    --qb-gold:        #e0a840;
+    /* red text (overdue counts and days, negative figures, errors) was
+       4.33:1 on the panel, 5.05 now; the void and overdue badges take the
+       same red, 4.86 on their ground */
+    --qb-red:         #e46969;
+    --qb-orange:      #e08050;
+
+    --invoice-bg:     #1e2028;
+    --estimate-bg:    #1a2520;
+    --form-bg:        #1a1c24;
+
+    --toolbar-bg:     #242830;
+    --toolbar-border: #3a3e48;
+    --content-bg:     #14161c;
+    --panel-bg:       #1e2028;
+    --panel-border:   #2e3240;
+    --input-border:   #3a4050;
+    --input-focus:    #5b9bd5;
+
+    --text-primary:   #e0e4ec;
+    --text-secondary: #a0a8b8;
+    /* #7a8498 was 4.32:1 on the panel and 3.93 on a page header; 5.06 and
+       4.60 now (macOS gate's contrast sweep, 2.18.0) */
+    --text-muted:     #8790a2;
+    --text-light:     #7f8899;   /* was #606878, 2.90:1 on a card; 4.55 */
+    --text-on-dark:   #c8d0dc;
+    --text-on-navy:   #e0e4ec;
+
+    --primary-light:  #1e2838;
+
+    --gray-50:        #14161c;   /* Used for "Total" / subtotal table rows */
+    --gray-100:       #181a22;
+    --gray-200:       #2e3240;
+    --gray-300:       #3a3e48;
+    --gray-400:       #8b94a6; /* was #606878 — failed AA on the dark ground */
+    --gray-500:       #8790a2;   /* = --text-muted */
+    --gray-600:       #a0a8b8;
+
+    --success:        #4caf7a;
+    --warning:        #e0a840;
+    --danger:         #e46969;   /* = --qb-red */
+}
+
+/* Body and main content */
+[data-theme="dark"] body {
+    background: var(--content-bg);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] #content {
+    background: var(--content-bg);
+    color: var(--text-primary);
+}
+
+/* Topbar */
+[data-theme="dark"] #topbar {
+    background: linear-gradient(180deg, #2a2e38 0%, #1e2028 100%);
+    border-bottom-color: #3a3e48;
+}
+
+[data-theme="dark"] .topbar-brand { color: #e0e4ec; }
+[data-theme="dark"] .topbar-brand span { color: var(--qb-gold); }
+[data-theme="dark"] .tb-btn { color: var(--text-secondary); }
+[data-theme="dark"] .tb-btn:hover { background: rgba(255,255,255,0.08); border-color: #4a4e58; color: #e0e4ec; }
+[data-theme="dark"] .topbar-clock { color: var(--text-secondary); }
+
+/* Sun icon (shown in dark mode — click to return to light) gets warm amber */
+[data-theme="dark"] #theme-toggle {
+    color: #ffc94a;
+    text-shadow: 0 0 8px rgba(255, 201, 74, 0.65);
+}
+[data-theme="dark"] #theme-toggle:hover {
+    color: #ffd970;
+    text-shadow: 0 0 12px rgba(255, 201, 74, 0.9);
+    background: rgba(255, 201, 74, 0.12);
+    border-color: rgba(255, 201, 74, 0.45);
+}
+
+/* Sidebar */
+[data-theme="dark"] #sidebar {
+    background: linear-gradient(180deg, #0d1520 0%, #080c14 100%);
+}
+
+[data-theme="dark"] .sidebar-header h1 { color: #e0e4ec; }
+[data-theme="dark"] .sidebar-edition { color: var(--qb-gold); }
+[data-theme="dark"] .nav-section { color: #7a8498; }
+[data-theme="dark"] .nav-link { color: #b0bcc8; }
+[data-theme="dark"] .nav-link:hover { color: #e0e4ec; background: rgba(255,255,255,0.05); }
+[data-theme="dark"] .nav-link.active { color: #ffffff; background: rgba(90,155,213,0.2); }
+/* #505868 measured 2.53:1 against the sidebar — the footer carries the
+   running version and the "tell us" link, so it has to be readable.
+   #868d9e is 4.75:1 and still clearly secondary. (macbase1 #41) */
+[data-theme="dark"] .sidebar-footer { color: #868d9e; }
+
+/* Status bar */
+[data-theme="dark"] #statusbar {
+    background: linear-gradient(180deg, #242830 0%, #1a1c24 100%);
+    border-top-color: #3a3e48;
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .status-section { color: var(--text-secondary); }
+
+/* Page header */
+[data-theme="dark"] .page-header {
+    background: linear-gradient(180deg, #242830 0%, #1e2028 100%);
+    border-color: var(--panel-border);
+}
+
+[data-theme="dark"] .page-header h2 { color: #e0e4ec; }
+
+/* Tables */
+[data-theme="dark"] thead th {
+    background: linear-gradient(180deg, #2a2e38 0%, #222630 100%);
+    color: var(--text-secondary);
+    border-bottom-color: var(--panel-border);
+    border-right-color: #2e3240;
+}
+
+[data-theme="dark"] tbody td {
+    border-bottom-color: #252830;
+    border-right-color: #1e2028;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] tbody tr:nth-child(even) { background: #181a22; }
+[data-theme="dark"] tbody tr:hover { background: #222838; }
+/* the pay-run view's Employee column keeps its own ground (style.css) */
+[data-theme="dark"] .pay-run-table tbody tr:nth-child(even) td:first-child { background: #181a22; }
+[data-theme="dark"] .pay-run-table tbody tr:hover td:first-child { background: #222838; }
+
+/* Table group header rows (Chart of Accounts type headers) */
+[data-theme="dark"] tbody tr[style*="background:linear-gradient"] td {
+    color: #8ab4e0 !important;
+    background: linear-gradient(180deg, #1e2838 0%, #182030 100%) !important;
+}
+
+/* Table strong text */
+[data-theme="dark"] td strong { color: #e0e4ec; }
+
+/* Cards */
+[data-theme="dark"] .card {
+    background: var(--panel-bg);
+    border-color: var(--panel-border);
+    box-shadow: 1px 1px 4px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .card-header {
+    border-bottom-color: #2e3240;
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .card-value {
+    color: #e0e4ec;
+}
+
+/* Dashboard sections */
+[data-theme="dark"] .dashboard-section h3 {
+    color: #b0c4dc;
+}
+
+/* Empty state */
+[data-theme="dark"] .empty-state { color: var(--text-secondary); }
+[data-theme="dark"] .empty-state p { color: var(--text-secondary); }
+
+/* Forms */
+[data-theme="dark"] .form-group label { color: var(--text-secondary); }
+
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea {
+    background: #14161c;
+    color: var(--text-primary);
+    border-color: var(--input-border);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+[data-theme="dark"] .form-group input:focus,
+[data-theme="dark"] .form-group select:focus,
+[data-theme="dark"] .form-group textarea:focus {
+    background: #1a1e28;
+    border-color: var(--input-focus);
+}
+
+[data-theme="dark"] .form-group select {
+    background: linear-gradient(180deg, #1a1c24 0%, #14161c 100%);
+}
+
+/* Modal */
+[data-theme="dark"] .modal {
+    background: var(--form-bg);
+    border-color: #3a4050;
+}
+
+[data-theme="dark"] .modal-header {
+    background: linear-gradient(180deg, #2a3648 0%, #1a2332 100%);
+}
+
+[data-theme="dark"] .modal-header h2 { color: #e0e4ec; }
+[data-theme="dark"] .modal-close { color: var(--text-secondary); }
+
+/* Buttons */
+[data-theme="dark"] .btn {
+    background: linear-gradient(180deg, #2a2e38 0%, #1e2028 100%);
+    color: var(--text-primary);
+    border-color: #3a4050;
+}
+
+[data-theme="dark"] .btn:hover {
+    background: linear-gradient(180deg, #323640 0%, #282c38 100%);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-primary {
+    background: linear-gradient(180deg, #2a5a8a 0%, #1e4470 100%);
+    color: #e0e4ec;
+    border-color: #3a6a9a;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background: linear-gradient(180deg, #3a6a9a 0%, #2a5a8a 100%);
+}
+
+[data-theme="dark"] .btn-secondary {
+    background: linear-gradient(180deg, #2a2e38 0%, #1e2028 100%);
+    border-color: #3a4050;
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-danger {
+    background: linear-gradient(180deg, #8a2a2a 0%, #701e1e 100%);
+    color: #f0c0c0;
+    border-color: #9a3a3a;
+}
+
+/* Toolbar */
+[data-theme="dark"] .toolbar {
+    background: #242830;
+    border-color: #3a3e48;
+}
+
+[data-theme="dark"] .toolbar input,
+[data-theme="dark"] .toolbar select {
+    background: #14161c;
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+/* Settings sections */
+[data-theme="dark"] .settings-section {
+    background: var(--panel-bg);
+    border-color: var(--panel-border);
+}
+
+[data-theme="dark"] .settings-section h3 {
+    color: #b0c4dc;
+}
+
+/* Search */
+[data-theme="dark"] .tb-search {
+    background: #14161c;
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+[data-theme="dark"] .search-dropdown {
+    background: var(--panel-bg);
+    border-color: var(--panel-border);
+}
+
+[data-theme="dark"] .search-section { background: #14161c; color: var(--text-secondary); }
+[data-theme="dark"] .search-item { color: var(--text-primary); }
+[data-theme="dark"] .search-item:hover { background: #222838; }
+
+/* Scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-track { background: #14161c; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #3a3e48 0%, #2a2e38 100%);
+    border-color: #4a4e58;
+}
+
+/* Splash */
+[data-theme="dark"] .splash-box {
+    background: linear-gradient(180deg, #0d1520 0%, #060a10 100%);
+}
+
+[data-theme="dark"] .splash-title { color: #e0e4ec; }
+[data-theme="dark"] .splash-subtitle { color: var(--qb-gold); }
+[data-theme="dark"] .splash-info { color: var(--text-secondary); }
+[data-theme="dark"] .splash-legal { color: var(--text-muted); }
+/* The licence block and the button that records it. 2.14.0 gave the terms a
+   light panel that only works in the light theme; in dark the text around it
+   goes light while the panel stays a pale grey (2.34:1), and --qb-navy-dark
+   becomes a light blue that vanishes on the gold button (1.13:1). On macOS
+   this splash is the licence record (macbase1, 2.15.0 gate). */
+[data-theme="dark"] .splash-terms {
+    background: #1e2632;
+    border-color: #3a4656;
+    color: #e0e4ec;
+}
+[data-theme="dark"] .splash-terms-title,
+[data-theme="dark"] .splash-terms strong { color: #ffffff; }
+[data-theme="dark"] .splash-terms a { color: #8ab4f8; }
+[data-theme="dark"] .splash-btn { color: #002244; }
+/* The What's New box beside it had the same light panel and was never given
+   a dark one: light text on pale grey, unreadable (macbase1 and the owner,
+   2.16.3 gate). The same panel as the licence block. */
+[data-theme="dark"] .splash-whatsnew {
+    background: #1e2632;
+    border-color: #3a4656;
+    color: #e0e4ec;
+}
+[data-theme="dark"] .splash-whatsnew-title { color: #ffffff; }
+
+/* Line items table */
+[data-theme="dark"] .line-items-table { border-color: var(--panel-border); }
+[data-theme="dark"] .line-items-table th {
+    background: linear-gradient(180deg, #2a2e38 0%, #222630 100%);
+    border-right-color: #2e3240;
+    color: var(--text-secondary);
+}
+[data-theme="dark"] .line-items-table td {
+    border-right-color: #252830;
+    border-bottom-color: #252830;
+}
+[data-theme="dark"] .line-items-table input,
+[data-theme="dark"] .line-items-table select {
+    background: #14161c;
+    color: var(--text-primary);
+    border-color: var(--input-border);
+}
+
+/* IIF sections */
+[data-theme="dark"] .iif-section { background: var(--panel-bg); border-color: var(--panel-border); }
+[data-theme="dark"] .iif-dropzone { background: #14161c; border-color: var(--input-border); color: var(--text-secondary); }
+
+/* Form actions border */
+[data-theme="dark"] .form-actions { border-top-color: #2e3240; }
+[data-theme="dark"] .invoice-totals { border-top-color: var(--panel-border); }
+[data-theme="dark"] .total-row { color: var(--text-primary); }
+[data-theme="dark"] .total-row .label { color: var(--text-secondary); }
+[data-theme="dark"] .total-row .value { color: var(--text-primary); }
+[data-theme="dark"] .total-row.grand-total { border-top-color: var(--qb-blue); }
+[data-theme="dark"] .total-row.grand-total .value { color: var(--qb-blue-accent); }
+
+/* Badges - keep readable in dark mode */
+[data-theme="dark"] .badge-draft { background: #2a2e38; color: #a0a8b8; border-color: #3a4050; }
+[data-theme="dark"] .badge-sent { background: #1a3a5a; color: #6bb3e8; border-color: #2a5a8a; }
+[data-theme="dark"] .badge-paid { background: #1a3a2a; color: #4caf7a; border-color: #2a6a4a; }
+[data-theme="dark"] .badge-recorded { background: #1a3a2a; color: #4caf7a; border-color: #2a6a4a; }
+[data-theme="dark"] .badge-partial { background: #3a3010; color: #e0a840; border-color: #5a5020; }
+[data-theme="dark"] .badge-void { background: #3a1a1a; color: #e46969; border-color: #5a2a2a; }  /* #e05555: 4.17:1 */
+[data-theme="dark"] .badge-issued { background: #1a3a5a; color: #6bb3e8; border-color: #2a5a8a; }
+[data-theme="dark"] .badge-applied { background: #1a3a2a; color: #4caf7a; border-color: #2a6a4a; }
+[data-theme="dark"] .badge-overdue { background: #3a1a1a; color: #e46969; border-color: #5a2a2a; }
+
+/* Amount columns */
+[data-theme="dark"] .amount { color: var(--text-primary); }
+
+/* Quick entry info box */
+[data-theme="dark"] .quick-entry-info {
+    background: #1e2838 !important;
+    border-color: #3a4a5a !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Disclaimer boxes (payroll, etc.) */
+[data-theme="dark"] div[style*="background:#fef3c7"] {
+    background: #2a2518 !important;
+    border-color: #4a4020 !important;
+    color: #c0a060 !important;
+}
+
+/* Inline styles that use hardcoded colors — override common patterns */
+[data-theme="dark"] [style*="color:var(--qb-navy)"] { color: #8ab4e0 !important; }
+[data-theme="dark"] [style*="font-weight:700"] { color: var(--text-primary); }
+
+/* Phase 9: Analytics error box — dark variant */
+[data-theme="dark"] .analytics-error {
+    background: #2a1e1e;
+    border-color: #e05555;
+    color: #ff9f9f;
+}
+
+/* Phase 9: Totals row in aging tables */
+[data-theme="dark"] .totals-row td {
+    background: rgba(138, 180, 224, 0.08);
+    border-top-color: var(--panel-border);
+}
+
+/* Scan Receipt field picker: deep opaque fill, light text — the pastel
+   light-mode fills have no contrast on a dark ground. */
+[data-theme="dark"] .btn.ocr-pick,
+[data-theme="dark"] .btn.ocr-pick:hover,
+[data-theme="dark"] .btn.ocr-pick:active {
+    background: var(--pick-dark);
+    color: #f3f4f6;
+    border-color: var(--pick-stroke);
+}
+[data-theme="dark"] .btn.ocr-pick:hover { filter: brightness(1.15); }
+
+/* Control accounts (issue #122) — same treatment as badge-partial, which is
+   the amber the dark theme already uses for "attention, not a problem". */
+[data-theme="dark"] .badge-control { background: #3a3010; color: #e0a840; border-color: #5a5020; }
+[data-theme="dark"] .hint--locked {
+    background: #2a2410;
+    border-color: #5a5020;
+    border-left-color: #e0a840;
+    color: #e8d9b0;
+}
+[data-theme="dark"] .hint--locked em { color: #e0a840; }
+[data-theme="dark"] .form-group input[disabled],
+[data-theme="dark"] .form-group select[disabled] { background: #23262b; color: #8b9098; }
+
+/* Contrast, from the macOS gate's sweep (2.18.0) and the same sweep over
+   every page (tests/test_theme_contrast.py). */
+
+/* The skip link's --qb-blue is a light blue here: white on it was 4.20:1.
+   The primary button's blue, 7.17. */
+[data-theme="dark"] .skip-link { background: #2a5a8a; }
+
+/* "Click to browse" on the IIF drop zone: --qb-blue as text, 4.30:1 */
+[data-theme="dark"] .iif-dropzone-text strong { color: var(--qb-blue-light); }
+
+/* AI Insights title: #a855f7 was 4.11:1 on the card */
+[data-theme="dark"] .ai-insights-title { color: #ae62f8; }
+
+/* Toasts are white text on a colour, and this theme's green, red and blue
+   are light: white on them read 2.72, 3.75 and 4.20:1. They keep the light
+   theme's colours, 4.86, 5.14 and 6.00. */
+[data-theme="dark"] .toast-success { background: #2b8055; }
+[data-theme="dark"] .toast-error   { background: #cc3333; }
+[data-theme="dark"] .toast-info    { background: #336699; }
+
+/* The tinted notes (style.css .note--*): a dark tint of each, under this
+   theme's text. As inline pale boxes they took the light text on a pale
+   ground, 1.14:1. */
+[data-theme="dark"] .card.note--ok,
+[data-theme="dark"] .note--ok      { background: #1a3a2a; border-left-color: #4caf7a; }
+[data-theme="dark"] .card.note--alert,
+[data-theme="dark"] .note--alert   { background: #3a1a1a; border-left-color: #e46969; }
+[data-theme="dark"] .card.note--caution,
+[data-theme="dark"] .note--caution { background: #2a2518; border-left-color: #e0a840; }
+[data-theme="dark"] .note--plain   { background: #242830; }
+
+/* Type-ahead pickers (combobox.js) */
+[data-theme="dark"] .cbx-input {
+    background-color: #14161c;
+    color: var(--text-primary);
+    border-color: var(--input-border);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0h8L4 5z' fill='%23a0a8b8'/%3E%3C/svg%3E") !important;
+}
+[data-theme="dark"] .cbx-popup {
+    background: var(--panel-bg);
+    border-color: var(--panel-border);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+[data-theme="dark"] .cbx-opt[aria-selected="true"] { background: #2b4a78; color: #ffffff; }
+[data-theme="dark"] .cbx-opt[aria-selected="true"] .cbx-in { color: #c8d0dc; }

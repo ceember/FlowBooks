@@ -1,0 +1,2534 @@
+/* ============================================================================
+ * FlowBooks — UI Stylesheet
+ * ============================================================================ */
+
+/* Skip-to-content link — first tab stop on every page, hidden until focused.
+   Lets keyboard / screen-reader users jump past the topbar + sidebar straight
+   into the main content area. */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--qb-blue, #1e3a8a);
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 10000;
+    text-decoration: none;
+    font-weight: 600;
+}
+.skip-link:focus {
+    top: 0;
+    outline: 2px solid var(--qb-gold, #f7c948);
+    outline-offset: 2px;
+}
+
+/* ============================================================================
+ * BUILD NOTE: The yellow invoice texture (RT_BITMAP 0x012C) was a 4x4 px
+ * tiled BMP in the original. We recreated it as a CSS gradient. Close enough.
+ * ============================================================================ */
+
+:root {
+    /* -- the classic "Default Blue" palette -- */
+    --qb-navy:        #003366;
+    --qb-navy-dark:   #002244;
+    --qb-navy-mid:    #004488;
+    --qb-blue:        #336699;
+    /* the top of the primary-button and dialog-title gradients, under white
+       text: #4a7fb5 was 4.20:1, this is 4.56 */
+    --qb-blue-light:  #4779ad;
+    --qb-blue-accent: #5b9bd5;
+    /* Link colour. There was no rule for a bare <a> at all, so the browser
+       chose — and its default #0000EE sits at 1.73:1 on the dark panel,
+       against a product documenting WCAG AA. Attachment filenames, the
+       SimpleFIN bridge link and "Get a key" are all bare anchors.
+       Measured: 12.6:1 here, 7.2:1 in dark. (macbase1, 2.10.3 gate) */
+    --text-link:      #003366;
+    --text-success:   #166534;   /* 7.13:1 on white */
+    /* Chart colours: a chart's lines, bars and keys are graphics, 3:1 on the
+       card (WCAG 1.4.11); every one here clears it on white. */
+    --chart-green: #0a9a6c;
+    --chart-red: #e5484d;
+    --chart-orange: #d9730d;
+    --chart-amber: #cc6a0a;
+    --chart-crimson: #d63240;
+    --chart-blue: #4c6ef5;
+    --chart-purple: #8b5cf6;
+    --chart-pink: #c026d3;
+    --chart-sky: #0b8bc4;
+    --chart-yellow: #b08900;
+    /* The A/R aging bands, for the bar and the key beside each label, so
+       the two stay matched. A key is a graphic: 3:1 on the card (WCAG
+       1.4.11). Gold #cc9933 was 2.57 and orange #f97316 2.80 (macbase1
+       NEW-11); these are 3.13 and 3.11. */
+    --aging-current:  var(--success);   /* 3.57 */
+    --aging-30:       #b88a2e;
+    --aging-60:       #f36706;
+    --aging-90:       var(--danger);    /* 5.14 */
+    /* Red and amber for words, as --text-success is green for them: the
+       pages wrote #a4242b, #c0392b, #a8761f and #b45309 in by hand, which
+       the dark theme could not change (2.22:1 and 4.09 there) */
+    --text-danger:    #a4242b;   /* 7.33:1 on white, 6.41 on a pale red note */
+    --text-warning:   #92400e;   /* 7.09:1 on white */
+    /* Only the sidebar's section headings use it, on the navy: #669999 was
+       3.95:1 there, this is 4.57 (macOS gate's contrast sweep, 2.18.0) */
+    --qb-teal:        #76a4a4;
+    /* Green and orange are text (report amounts, import results) and the
+       success toast's ground: #339966 was 3.57:1 on white and #cc6633 3.81;
+       these are 4.86 and 4.82, and 4.6 on a table's striped row */
+    --qb-green:       #2b8055;
+    --qb-green-dark:  #2d7d56;
+    --qb-gold:        #cc9933;
+    --qb-red:         #cc3333;
+    --qb-orange:      #b2592d;
+
+    /* -- Form backgrounds (the famous tinted papers) -- */
+    --invoice-bg:     #fffef5;    /* yellow tint — RT_BITMAP 0x012C */
+    --estimate-bg:    #f5fff8;    /* green tint — RT_BITMAP 0x012D */
+    --form-bg:        #f7f8fa;
+
+    /* -- Chrome colors -- */
+    --toolbar-bg:     #d6dfe8;
+    --toolbar-border: #a8b8c8;
+    --content-bg:     #eef1f5;
+    --panel-bg:       #ffffff;
+    --panel-border:   #c0c8d0;
+    --input-border:   #7f9db9;
+    --input-focus:    #3366cc;
+
+    /* -- Text -- */
+    --text-primary:   #1a1a2e;
+    --text-secondary: #4a4a6a;
+    /* #7a7a9a was 4.14:1 on white, 3.65 on the page and 3.25 on a page
+       header's gradient. 4.59 at that gradient's darkest, 5.85 on white */
+    --text-muted:     #626282;
+    --text-light:     #6a6a88;   /* was #9a9ab0, 2.75:1 on white; 5.21 */
+    --text-on-dark:   #e8ecf0;
+    --text-on-navy:   #c8d8e8;
+
+    /* -- Functional -- */
+    --success:        #339966;
+    --warning:        #cc9933;
+    --danger:         #cc3333;
+
+    /* -- Gray scale (used by JS components and dark theme overrides) -- */
+    --primary-light: #e8ecf2;
+    --gray-50:  #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    /* Text only. #6b7280 was 4.27:1 on the page, 3.79 on a page header and
+       3.59 on a toolbar; 4.62 at the toolbar, 6.22 on white. (#9ca3af before
+       it was 2.5:1 on white.) */
+    --gray-400: #5b616d;
+    --gray-500: #5b616d;
+    --gray-600: #4b5563;
+
+    --sidebar-width: 200px;
+    --topbar-height: 40px;
+    --statusbar-height: 24px;
+    --font: Tahoma, 'Segoe UI', Geneva, Verdana, sans-serif;
+    --font-mono: 'Consolas', 'Courier New', monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: var(--font);
+    background: var(--content-bg);
+    color: var(--text-primary);
+    font-size: 12px;
+    line-height: 1.4;
+    overflow: hidden;
+}
+
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+/* ========================================================================
+ * TOP BAR — menu row with 24x24 toolbar buttons
+ * ======================================================================== */
+
+#topbar {
+    height: var(--topbar-height);
+    background: linear-gradient(180deg, #e8edf2 0%, #c8d0dc 100%);
+    border-bottom: 1px solid #a0a8b8;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 2px;
+    flex-shrink: 0;
+    z-index: 110;
+}
+
+.topbar-company {
+    font-weight: 700;
+    font-size: 12px;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 260px;
+}
+.topbar-company:empty { display: none; }
+.topbar-company:empty + .tb-sep { display: none; }
+
+.topbar-brand {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    margin-right: 16px;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    user-select: none;
+}
+
+/* The brand's year, the clock and the status bar sit on the toolbar and
+   status bar gradients, which are darker than the page: muted text there
+   read 2.57-2.66:1. They take the secondary text colour, as they already
+   do in dark theme (macOS gate's contrast sweep, 2.18.0). */
+.topbar-brand span {
+    font-weight: 400;
+    color: var(--text-secondary);
+    font-size: 10px;
+    margin-left: 4px;
+}
+
+.tb-sep {
+    width: 1px;
+    height: 22px;
+    background: #b0b8c4;
+    margin: 0 4px;
+}
+
+.tb-btn {
+    padding: 3px 10px;
+    font-size: 11px;
+    font-family: var(--font);
+    color: var(--text-secondary);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.tb-btn:hover {
+    background: rgba(255,255,255,0.6);
+    border-color: #b0b8c8;
+}
+
+.tb-btn:active {
+    background: rgba(0,0,0,0.05);
+}
+
+/* Theme toggle — moon (light mode) and sun (dark mode) get a colored glow
+   so the click target is obvious instead of disappearing into the toolbar. */
+#theme-toggle {
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 12px;
+    color: #3b5987;       /* cool blue moon; #4a6fa8 was 3.27:1 on the toolbar */
+    text-shadow: 0 0 6px rgba(74, 111, 168, 0.45);
+    transition: color 0.15s, text-shadow 0.15s;
+}
+#theme-toggle:hover {
+    color: #2e4d80;
+    text-shadow: 0 0 10px rgba(74, 111, 168, 0.7);
+    background: rgba(74, 111, 168, 0.08);
+    border-color: #b0c0d8;
+}
+
+.topbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-clock {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    color: var(--text-secondary);
+}
+
+/* ========================================================================
+ * SIDEBAR / NAVIGATOR — left-docked panel with 32x32 icons
+ * ======================================================================== */
+
+#main-area {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+#sidebar {
+    width: var(--sidebar-width);
+    background: linear-gradient(180deg, var(--qb-navy) 0%, var(--qb-navy-dark) 100%);
+    color: white;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-right: 1px solid #001a33;
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 14px 14px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    background: rgba(0,0,0,0.15);
+}
+
+.sidebar-header h1 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.sidebar-edition {
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--qb-gold);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+.nav-links {
+    list-style: none;
+    padding: 4px 0;
+    flex: 1;
+}
+
+.nav-section {
+    padding: 10px 14px 3px;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--qb-teal);
+    font-weight: 700;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    color: var(--text-on-navy);
+    text-decoration: none;
+    font-size: 11px;
+    transition: background 0.1s;
+    border-left: 3px solid transparent;
+}
+
+.nav-link:hover {
+    background: rgba(255,255,255,0.08);
+    color: #ffffff;
+}
+
+.nav-link.active {
+    background: rgba(255,255,255,0.12);
+    color: #ffffff;
+    border-left-color: var(--qb-gold);
+    font-weight: 700;
+}
+
+.nav-icon {
+    width: 16px;
+    text-align: center;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+.nav-link.active .nav-icon { opacity: 1; }
+
+.sidebar-footer {
+    padding: 8px 14px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    font-size: 9px;
+    /* 0.25 alpha measured 2.53:1 against the sidebar, and 0.50 is 4.28 at
+       the top of the sidebar's navy (5.06 where the footer sits): 0.60 is
+       5.47 at the top. Still clearly secondary. */
+    color: rgba(255,255,255,0.60);
+    text-align: center;
+    user-select: none;
+}
+
+.sidebar-footer .footer-link {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 10px;
+    /* 0.35 was 3.13:1 (skytech R3-1); 0.55 is 4.84 at the navy's top */
+    color: rgba(255,255,255,0.55);
+    text-decoration: none;
+}
+
+.sidebar-footer .footer-link:hover {
+    color: rgba(255,255,255,0.75);
+    text-decoration: underline;
+}
+
+/* Desktop-install update notice (fed by /api/system/update-check) */
+/* The update notice sits at the TOP of the sidebar. In the footer it was
+   only seen by someone who scrolled the whole menu, so people stayed on old
+   versions without knowing there was one. Deliberately a quiet banner and
+   not a dialog: apparent the moment the app opens, never blocking, and it
+   occupies no space at all when you are up to date. */
+#sidebar-update:empty { display: none; }
+
+.update-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 10px 0 2px;
+    padding: 7px 9px;
+    border-radius: 4px;
+    background: rgba(224, 158, 36, 0.16);
+    border: 1px solid rgba(224, 158, 36, 0.45);
+    border-left: 3px solid #e09e24;
+    color: #e8b64c;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.35;
+    text-decoration: none;
+    user-select: auto;
+    transition: background 120ms ease, border-color 120ms ease;
+}
+
+.update-badge:hover {
+    background: rgba(224, 158, 36, 0.30);
+    border-color: rgba(224, 158, 36, 0.85);
+}
+
+.update-badge__arrow {
+    flex: 0 0 auto;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.update-badge__text { display: block; }
+
+/* The call to action is the quiet half — present, not shouting. */
+.update-badge__cta {
+    display: block;
+    margin-top: 1px;
+    font-weight: 500;
+    font-size: 10px;
+    opacity: 0.85;
+}
+
+/* Respect a reduced-motion preference by having no motion to begin with —
+   this notice never animates, pulses or slides. */
+
+/* ========================================================================
+ * CONTENT AREA
+ * ======================================================================== */
+
+#content {
+    min-width: 0;
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    background: var(--content-bg);
+}
+
+#page-content {
+    min-width: 0;
+    max-width: 1100px;
+}
+
+/* ========================================================================
+ * STATUS BAR — "Ready" | company file path | current date
+ * ======================================================================== */
+
+#statusbar {
+    height: var(--statusbar-height);
+    background: linear-gradient(180deg, #e0e4ea 0%, #c8ccd4 100%);
+    border-top: 1px solid #a8acb4;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 10px;
+    color: var(--text-secondary);   /* see .topbar-brand span */
+    flex-shrink: 0;
+    gap: 16px;
+}
+
+.status-section {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.status-sep {
+    width: 1px;
+    height: 14px;
+    background: #b0b4bc;
+}
+
+.status-right {
+    margin-left: auto;
+}
+
+/* ========================================================================
+ * PAGE HEADERS — QuickBooks used a colored bar at the top of each view
+ * ======================================================================== */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: linear-gradient(180deg, #f0f3f7 0%, #e0e4ec 100%);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+}
+
+.page-header h2 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--qb-navy);
+}
+
+/* ========================================================================
+ * BUTTONS — subtle 3D bevel, in the Windows Classic spirit
+ * ======================================================================== */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    border: 1px solid #7f9db9;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 400;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all 0.1s;
+    background: linear-gradient(180deg, #ffffff 0%, #e8ecf0 100%);
+    color: var(--text-primary);
+}
+
+.btn:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f0f4f8 0%, #d8dce4 100%);
+    border-color: #5f7d99;
+}
+
+.btn:active:not(:disabled) {
+    background: linear-gradient(180deg, #d0d4d8 0%, #e0e4e8 100%);
+}
+
+.btn-primary {
+    background: linear-gradient(180deg, var(--qb-blue-light) 0%, var(--qb-blue) 100%);
+    color: white;
+    border-color: var(--qb-navy);
+    font-weight: 700;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, var(--qb-blue) 0%, var(--qb-navy-mid) 100%);
+}
+
+.btn-secondary {
+    background: linear-gradient(180deg, #ffffff 0%, #e8ecf0 100%);
+    color: var(--text-primary);
+    border-color: #7f9db9;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: linear-gradient(180deg, #f0f4f8 0%, #d8dce4 100%);
+}
+
+.btn-danger {
+    /* white on the old top stop, #e05555, was 3.75:1 */
+    background: linear-gradient(180deg, #d34242 0%, var(--qb-red) 100%);
+    color: white;
+    border-color: #992222;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: linear-gradient(180deg, var(--qb-red) 0%, #aa2222 100%);
+}
+
+.btn-sm {
+    padding: 2px 8px;
+    font-size: 10px;
+}
+
+/* A disabled button looks it: dimmed, a not-allowed cursor, and no hover
+   (the hover rules above skip :disabled). Disabled buttons looked enabled
+   and did nothing when clicked: the QBO page's Import with no connection,
+   Restore before its tick (macbase1 NEW-15, 2.18.0 gate). WCAG exempts an
+   inactive control from contrast. */
+.btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+/* ========================================================================
+ * TABLES — report view: alternating row colors, thin column separators
+ * ======================================================================== */
+
+.table-container {
+    max-width: 100%;
+    overflow-x: auto;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 0;
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+thead th {
+    background: linear-gradient(180deg, #e8ecf2 0%, #d0d8e0 100%);
+    padding: 4px 10px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--panel-border);
+    border-right: 1px solid #d8dce4;
+    white-space: nowrap;
+}
+
+thead th:last-child { border-right: none; }
+
+thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+thead th.sortable:hover {
+    background: linear-gradient(180deg, #d8dee8 0%, #c0cad4 100%);
+}
+thead th.sort-active {
+    color: var(--text-primary);
+    font-weight: 800;
+    background: linear-gradient(180deg, #d4dde6 0%, #b8c4d0 100%);
+}
+thead th .sort-arrow {
+    font-size: 9px;
+    margin-left: 2px;
+    /* --qb-blue was 3.38:1 on the sorted column's header, 3.23 in dark */
+    color: var(--qb-navy);
+}
+
+tbody td {
+    padding: 3px 10px;
+    border-bottom: 1px solid #e8ecf0;
+    font-size: 11px;
+    border-right: 1px solid #f0f2f4;
+}
+
+tbody td:last-child { border-right: none; }
+
+tbody tr:nth-child(even) { background: #f7f9fb; }
+tbody tr:hover { background: #e8f0f8; }
+tbody tr:last-child td { border-bottom: none; }
+
+td.actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+td.amount, th.amount {
+    text-align: right;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ========================================================================
+ * CARDS — used on Dashboard and Bank Accounts
+ * Styled to match QB2003's "Company Snapshot" panel
+ * ======================================================================== */
+
+.card {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 0;
+    padding: 12px 14px;
+    box-shadow: 1px 1px 2px rgba(0,0,0,0.06);
+}
+
+.card-header {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid #e0e4ec;
+}
+
+.card-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    font-family: var(--font-mono);
+}
+
+.card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* ========================================================================
+ * FORMS — Modal forms styled like QB2003 data entry windows
+ * The original forms had a light blue/gray gradient background with
+ * sunken 3D edit controls (WS_EX_CLIENTEDGE)
+ * ======================================================================== */
+
+/* minmax(0, 1fr), not 1fr: a column may be narrower than what is in it. A
+   select is as wide as its longest option, so one customer with a
+   120-character name widened the first column until the second (Date, Due
+   Date, Class, Exchange Rate) sat past the Edit Invoice dialog's edge,
+   behind a sideways scrollbar (macbase1, F22, still there at the 2.18.0
+   gate). Each field now fills its own column; the open list still shows
+   every name in full. */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 12px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-group label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 4px 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    font-size: 11px;
+    font-family: var(--font);
+    color: var(--text-primary);
+    background: #ffffff;
+    /* WS_EX_CLIENTEDGE sunken effect */
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.12);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    background: #fffff8;
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.08);
+}
+
+.form-group textarea {
+    min-height: 50px;
+    resize: vertical;
+}
+
+.form-group select {
+    box-shadow: none;
+    background: linear-gradient(180deg, #ffffff 0%, #f0f2f4 100%);
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #d0d4dc;
+}
+
+/* ========================================================================
+ * BADGES — Status indicators
+ * Colored text, no pill shapes
+ * We kept the pills because they look better, but matched the colors
+ * ======================================================================== */
+
+.badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.badge-draft   { background: #e8ecf0; color: #4a5568; border: 1px solid #c8ccd4; }
+.badge-sent    { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.badge-partial { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.badge-paid    { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge-recorded { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge-void    { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+/* issued / applied: the credit-document vocabulary. These existed in the
+   status enum from the day credit memos shipped and had no rule, so every
+   credit memo has been rendering an unstyled badge. Vendor credits use the
+   same words, so both are styled here. */
+.badge-issued  { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.badge-applied { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge-pending { background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.badge-accepted{ background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge-rejected{ background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.badge-converted{background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.badge-product { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.badge-service { background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; }
+.badge-material{ background: #fef3c7; color: #92400e; border: 1px solid #fbbf24; }
+.badge-labor   { background: #ede9fe; color: #5b21b6; border: 1px solid #c4b5fd; }
+
+/* ========================================================================
+ * MODAL — in the spirit of QB2003's popup data entry windows
+ * ======================================================================== */
+
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,20,50,0.45);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 40px;
+    z-index: 200;
+}
+
+
+/* A bare <a> had no rule anywhere, so the user agent picked the colour and
+   the dark theme had no way to change it — 1.73:1 (macbase1's sweep, which
+   found 58 elements below AA from three causes; this was the worst).
+   Components with their own link styling are unaffected: they set `color`
+   at higher specificity. */
+a {
+    color: var(--text-link);
+}
+
+a:hover { text-decoration: underline; }
+
+/* ------------------------------------------------------------------------
+   Utility: .hidden
+   ------------------------------------------------------------------------
+   The JS hides elements by adding this class — ten call sites across three
+   files — but there was no generic rule, only `.modal-overlay.hidden` and
+   `.splash-overlay.hidden`. Everything else kept the class and stayed on
+   screen. The global search dropdown was the visible casualty: it never
+   closed on click-away, on clearing the box, or on navigating, and at rest
+   it painted a 2px white sliver under the toolbar in every session, which
+   is the grey edge visible along the top of desktop screenshots for
+   releases. Found by the marketing agent building the training videos.
+
+   `!important` because the elements that carry this class set `display`
+   through their own rules at equal or higher specificity; without it the
+   trap is merely reset for the next component.
+
+   Note this is the .hidden CLASS. The HTML `hidden` ATTRIBUTE is separate
+   and untouched (`[hidden]` is handled by the shell's own reset).
+   ------------------------------------------------------------------------ */
+.hidden { display: none !important; }
+
+.modal-overlay.hidden { display: none; }
+
+.modal {
+    background: var(--form-bg);
+    border: 2px solid var(--qb-navy);
+    border-radius: 0;
+    width: 90%;
+    max-width: 700px;
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    box-shadow: 4px 4px 12px rgba(0,0,0,0.3);
+}
+
+/* A dialog for a form with a wide line-item table: as wide as the window
+   allows, up to 1280px. Opened with openModal(title, html, { wide: true }). */
+.modal.modal--wide {
+    max-width: min(1280px, 96vw);
+}
+
+/* A line-item table with more columns than the dialog is wide scrolls
+   sideways inside its container instead of losing its last columns behind
+   overflow: hidden (#174: the job cost entry's Bill? column and the remove
+   button were cut off, with no way to reach them). */
+.table-container--scroll {
+    overflow-x: auto;
+}
+/* Only the job cost entry's grid is wider than the dialog (its Bill? and
+   remove columns); the estimate's fits, and a floor on every scrolling grid
+   pushed its Amount column past the dialog's edge at 1280 wide (2.18.0 gate,
+   macbase1 NEW-12). */
+.table-container--scroll .line-items-table--wide {
+    min-width: 1180px;
+}
+
+/* The pay-run view: when the table is wider than the window, the Employee
+   column stays put while the rest scrolls, so each row still says whose
+   pay it is. The dialog used to open scrolled to the first Stub PDF, with
+   the names out of sight (2.18.0 gate, macbase1 NEW-3). The cell needs a
+   ground of its own, or the scrolled columns show through it. */
+.pay-run-table th:first-child,
+.pay-run-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    white-space: nowrap;
+    box-shadow: inset -1px 0 0 var(--panel-border);
+}
+.pay-run-table td:first-child { background: var(--panel-bg); }
+.pay-run-table tbody tr:nth-child(even) td:first-child { background: #f7f9fb; }
+.pay-run-table tbody tr:hover td:first-child { background: #e8f0f8; }
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: linear-gradient(180deg, var(--qb-blue-light) 0%, var(--qb-navy) 100%);
+    color: white;
+}
+
+.modal-header h2 {
+    font-size: 12px;
+    font-weight: 700;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 16px;
+    cursor: pointer;
+    /* white: the dialog header's gradient starts at --qb-blue-light, where
+       0.7 white was 3.11:1 and white is 4.56 */
+    color: #ffffff;
+    padding: 2px 4px;
+    line-height: 1;
+}
+.modal-close:hover { color: #ffffff; background: rgba(255, 255, 255, 0.15); }
+
+#modal-body {
+    padding: 14px 16px;
+}
+
+/* ========================================================================
+ * TOAST NOTIFICATIONS
+ * ======================================================================== */
+
+#toast-container {
+    position: fixed;
+    bottom: calc(var(--statusbar-height) + 8px);
+    right: 12px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.toast {
+    padding: 6px 14px;
+    border-radius: 2px;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+    animation: toast-in 0.2s ease;
+    border: 1px solid rgba(0,0,0,0.2);
+}
+
+.toast-success { background: var(--qb-green); }
+.toast-error   { background: var(--qb-red); }
+.toast-info    { background: var(--qb-blue); }
+
+@keyframes toast-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* ========================================================================
+ * DASHBOARD — "Company Snapshot" style
+ * ======================================================================== */
+
+.dashboard-section {
+    margin-bottom: 16px;
+}
+
+.dashboard-section h3 {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid var(--qb-gold);
+}
+
+/* ========================================================================
+ * LINE ITEMS TABLE — the invoice/estimate grid
+ * ======================================================================== */
+
+.line-items-table {
+    width: 100%;
+    margin-top: 8px;
+    border: 1px solid var(--panel-border);
+}
+
+.line-items-table th {
+    font-size: 9px;
+    padding: 3px 6px;
+    background: linear-gradient(180deg, #e8ecf2 0%, #d0d8e0 100%);
+    border-right: 1px solid #d8dce4;
+}
+
+.line-items-table th:last-child { border-right: none; }
+
+.line-items-table td {
+    padding: 2px 4px;
+    border-right: 1px solid #e8ecf0;
+    border-bottom: 1px solid #e8ecf0;
+}
+
+.line-items-table td:last-child { border-right: none; }
+
+.line-items-table input,
+.line-items-table select {
+    width: 100%;
+    padding: 2px 4px;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    font-size: 11px;
+    font-family: var(--font);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.08);
+}
+
+.line-items-table .col-qty    { width: 60px; }
+.line-items-table .col-rate   { width: 80px; }
+.line-items-table .col-amount { width: 80px; text-align: right; white-space: nowrap; }
+.line-items-table .col-actions{ width: 30px; text-align: center; }
+
+.invoice-logo-option {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 10px;
+    margin-bottom: 12px;
+    border: 1px solid var(--panel-border);
+    background: var(--form-bg);
+}
+
+.invoice-logo-preview {
+    max-width: 140px;
+    max-height: 56px;
+    object-fit: contain;
+    padding: 4px;
+    background: white;
+}
+
+.invoice-logo-option label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+
+.invoice-logo-option input {
+    width: auto;
+}
+
+.invoice-logo-help,
+.invoice-logo-status {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+.invoice-logo-status.invoice-logo-error {
+    color: var(--danger);
+}
+
+.invoice-totals {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--panel-border);
+}
+
+.total-row {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+}
+
+.total-row .label {
+    color: var(--text-secondary);
+    min-width: 80px;
+    text-align: right;
+    font-weight: 700;
+}
+
+.total-row .value {
+    min-width: 80px;
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+}
+
+.total-row.grand-total {
+    font-weight: 700;
+    font-size: 13px;
+    padding-top: 4px;
+    margin-top: 2px;
+    border-top: 2px solid var(--qb-navy);
+    color: var(--qb-navy);
+}
+
+/* ========================================================================
+ * EMPTY STATE
+ * ======================================================================== */
+
+.empty-state {
+    text-align: center;
+    padding: 30px 16px;
+    color: var(--text-muted);
+}
+
+.empty-state p {
+    margin-bottom: 10px;
+    font-size: 12px;
+}
+
+/* ========================================================================
+ * TOOLBAR / FILTERS
+ * ======================================================================== */
+
+.toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 4px 8px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--toolbar-border);
+}
+
+.toolbar input,
+.toolbar select {
+    padding: 3px 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    font-size: 11px;
+    font-family: var(--font);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.08);
+}
+
+/* Show: Active / Inactive / All on a list page (#210) */
+.toolbar .list-show-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+/* Clickable row */
+tr.clickable { cursor: pointer; }
+
+/* ========================================================================
+ * SPLASH / ABOUT DIALOG
+ * ======================================================================== */
+
+.splash-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,10,30,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    animation: splash-fade-in 0.3s ease;
+}
+
+.splash-overlay.hidden { display: none; }
+
+@keyframes splash-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.splash-box {
+    width: 420px;
+    background: linear-gradient(180deg, var(--qb-navy) 0%, #001a33 100%);
+    border: 3px solid var(--qb-gold);
+    box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+    text-align: center;
+    padding: 30px 24px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+.splash-box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--qb-gold), #ffcc66, var(--qb-gold));
+}
+
+.splash-title {
+    font-size: 28px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: -0.03em;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+    margin-bottom: 2px;
+}
+
+.splash-subtitle {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--qb-gold);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 20px;
+}
+
+.splash-divider {
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--qb-gold), transparent);
+    margin: 0 auto 16px;
+}
+
+.splash-info {
+    font-size: 10px;
+    /* 0.5 was 4.28:1 at the top of the navy (4.48 as skytech measured it
+       with the terms showing, R3-1); 0.6 is 5.47. Its bold stays 0.7. */
+    color: rgba(255,255,255,0.6);
+    line-height: 1.6;
+    margin-bottom: 16px;
+}
+
+.splash-info strong {
+    color: rgba(255,255,255,0.7);
+}
+
+.splash-whatsnew {
+    text-align: left;
+    margin: 10px 0 4px;
+    padding: 8px 10px;
+    border: 1px solid var(--gray-300, #d1d5db);
+    background: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    line-height: 1.35;
+    max-height: 170px;
+    overflow-y: auto;
+}
+.splash-whatsnew-title { font-weight: 700; margin-bottom: 4px; }
+.splash-whatsnew ul { margin: 0; padding-left: 16px; }
+.splash-whatsnew li { margin: 2px 0; }
+
+.splash-terms {
+    text-align: left;
+    margin: 12px 0 4px;
+    padding: 10px 14px;
+    border: 1px solid var(--gray-300, #d0d4dc);
+    border-radius: 6px;
+    font-size: 12px;
+    line-height: 1.45;
+    max-height: 260px;
+    overflow-y: auto;
+    /* the sibling .splash-whatsnew's panel; without it the text sits at 1.16:1 on the
+       splash navy (macbase1, 2.14.0 gate) */
+    background: rgba(255, 255, 255, 0.55);
+}
+.splash-terms-title { font-weight: 700; margin-bottom: 6px; }
+.splash-terms-list { margin: 0; padding-left: 18px; }
+.splash-terms-list li { margin-bottom: 6px; }
+/* the link to LICENSE sat at 4.29:1 on the light panel (measured in headless
+   Chromium, 2.16.2 gate); the navy the button uses reads at AA there. The dark
+   theme overrides it in dark.css. */
+.splash-terms a { color: #002244; font-weight: 600; }
+
+.splash-legal {
+    font-size: 8px;
+    /* 0.25 was 2.22:1 (skytech R3-1); 0.55 is 4.84, still the faintest line */
+    color: rgba(255,255,255,0.55);
+    line-height: 1.5;
+    margin-bottom: 16px;
+    padding: 0 16px;
+}
+
+.splash-btn {
+    padding: 6px 28px;
+    background: linear-gradient(180deg, var(--qb-gold) 0%, #b8862e 100%);
+    border: 1px solid #8a6420;
+    color: var(--qb-navy-dark);
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--font);
+    cursor: pointer;
+    border-radius: 2px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.splash-btn:hover {
+    background: linear-gradient(180deg, #ddaa44 0%, var(--qb-gold) 100%);
+}
+
+/* ========================================================================
+ * SCROLLBAR STYLING — to match the Windows XP / Classic theme
+ * ======================================================================== */
+
+::-webkit-scrollbar { width: 14px; }
+::-webkit-scrollbar-track { background: #e8ecf0; }
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #c0c8d0 0%, #a0a8b0 100%);
+    border: 1px solid #8890a0;
+}
+::-webkit-scrollbar-thumb:hover { background: #a0a8b4; }
+
+/* ========================================================================
+ * PRINT STYLES
+ * ======================================================================== */
+
+@media print {
+    #sidebar, #topbar, #statusbar, .btn, .modal-overlay, #toast-container { display: none !important; }
+    #content { margin: 0; padding: 0; }
+    body { background: white; }
+}
+
+/* ========================================================================
+ * GLOBAL SEARCH
+ * ======================================================================== */
+
+.tb-search {
+    width: 180px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: var(--font);
+    border: 1px solid var(--input-border);
+    background: white;
+    border-radius: 2px;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.tb-search:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.08), 0 0 0 2px rgba(51,102,204,0.2);
+}
+
+.search-dropdown {
+    position: absolute;
+    top: var(--topbar-height);
+    right: 120px;
+    width: 300px;
+    max-height: 300px;
+    overflow-y: auto;
+    background: white;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 200;
+}
+
+.search-section {
+    padding: 4px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    background: var(--content-bg);
+    border-bottom: 1px solid var(--panel-border);
+}
+
+.search-item {
+    padding: 6px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.search-item:hover {
+    background: var(--primary-light, #e8f0f8);
+}
+
+/* ========================================================================
+ * SETTINGS PAGE — CPreferencesDialog
+ * ======================================================================== */
+
+.settings-section {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.settings-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+/* ========================================================================
+ * QUICK ENTRY — batch invoice entry
+ * ======================================================================== */
+
+.quick-entry-info {
+    font-size: 11px;
+}
+
+#qe-log {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--panel-border);
+    /* Was a hardcoded `white`, which the dark theme could not override — the
+       log text is near-white there, so the running confirmation of what you
+       just saved was invisible at about 1.1:1 contrast. Quick Entry exists
+       to batch entries and read that log back, and the product documents
+       WCAG AA. Token, so both themes follow. */
+    background: var(--panel-bg);
+    color: var(--text-primary);
+    padding: 4px 8px;
+}
+
+/* ========================================================================
+ * IIF IMPORT/EXPORT — QuickBooks 2003 Pro Interoperability
+ * File > Utilities > Import/Export IIF Files
+ * ======================================================================== */
+
+.iif-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.iif-section {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    padding: 16px;
+}
+
+.iif-section h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--panel-border);
+}
+
+/* QBO imports: keep the live log inside the import controls' column. */
+.qbo-sections { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.qbo-sections > .iif-section { min-width: 0; }
+.qbo-import-log {
+    --qbo-log-warning: #9a4b12;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    border: 1px solid var(--panel-border);
+    background: var(--panel-bg);
+    font: 10px/1.5 var(--font-mono);
+    color: var(--text-primary);
+}
+.qbo-log-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 7px 9px;
+    background: var(--form-bg);
+    border-bottom: 1px solid var(--panel-border);
+}
+.qbo-log-heading > strong { font-size: 11px; }
+.qbo-log-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+.qbo-log-controls .btn { padding: 2px 5px; font-size: 10px; }
+.qbo-log-controls .btn[hidden] { display: none; }
+.qbo-run-status { font-weight: 700; color: var(--text-secondary); }
+.qbo-status-running { color: var(--text-link); }
+.qbo-status-complete { color: var(--text-success); }
+.qbo-status-warning { color: var(--qbo-log-warning); }
+.qbo-status-error { color: var(--danger); }
+.qbo-run-detail, .qbo-run-activity { padding: 5px 9px; overflow-wrap: anywhere; }
+.qbo-run-activity { color: var(--text-secondary); border-bottom: 1px solid var(--panel-border); }
+.qbo-run-counts { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 0 9px; }
+.qbo-run-counts strong { font-variant-numeric: tabular-nums; }
+.qbo-log-scroll { height: 320px; overflow: auto; overscroll-behavior: contain; }
+.qbo-log-table { width: 100%; min-width: 480px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-size: inherit; }
+.qbo-log-table th, .qbo-log-table td {
+    padding: 4px 5px;
+    font-size: inherit;
+    vertical-align: top;
+    text-align: left;
+    overflow-wrap: anywhere;
+    border-bottom: 1px solid var(--panel-border);
+}
+.qbo-log-table th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--form-bg);
+    color: var(--text-secondary);
+    font-weight: 700;
+}
+.qbo-log-table td:first-child { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.qbo-col-ts { width: 87px; }
+.qbo-col-code, .qbo-col-item, .qbo-col-action { width: 56px; }
+.qbo-log-code, .qbo-log-item-label { display: block; color: var(--text-secondary); }
+.qbo-log-level { font-weight: 700; }
+.qbo-log-error .qbo-log-level { color: var(--danger); }
+.qbo-log-warning .qbo-log-level { color: var(--qbo-log-warning); }
+.qbo-log-error td:first-child { border-left: 2px solid var(--danger); }
+.qbo-log-warning td:first-child { border-left: 2px solid var(--qbo-log-warning); }
+.qbo-log-empty { padding: 18px 10px; color: var(--text-secondary); text-align: center; }
+.qbo-errors-only #qbo-log-rows > tr:not(.qbo-log-error) { display: none; }
+#qbo-errors-filter[aria-pressed="true"] { color: var(--danger); font-weight: 700; border-color: var(--danger); }
+.qbo-log-error .qbo-log-code { color: var(--danger); }
+[data-theme="dark"] .qbo-import-log { --qbo-log-warning: var(--qb-orange); }
+@media (max-width: 800px) {
+    .qbo-sections { grid-template-columns: minmax(0, 1fr); }
+}
+
+.iif-export-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.iif-export-grid .btn {
+    justify-content: center;
+    text-align: center;
+    padding: 6px 10px;
+}
+
+.iif-date-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+    font-size: 11px;
+}
+
+.iif-date-range label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.iif-date-range input {
+    padding: 3px 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    font-size: 11px;
+    font-family: var(--font);
+    box-shadow: inset 1px 1px 2px rgba(0,0,0,0.08);
+}
+
+.iif-dropzone {
+    border: 2px dashed var(--input-border);
+    border-radius: 3px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: #fafbfc;
+    margin-bottom: 12px;
+}
+
+.iif-dropzone:hover,
+.iif-dropzone.dragover {
+    border-color: var(--qb-blue);
+    background: #f0f4fa;
+}
+
+.iif-dropzone-icon {
+    font-size: 28px;
+    color: var(--qb-blue);
+    margin-bottom: 6px;
+}
+
+.iif-dropzone-text {
+    font-size: 11px;
+    color: var(--text-secondary);
+}
+
+.iif-dropzone-text strong {
+    color: var(--qb-blue);
+}
+
+.iif-file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #f0f4fa;
+    border: 1px solid var(--qb-blue);
+    margin-bottom: 12px;
+    font-size: 11px;
+}
+
+.iif-file-info .filename {
+    font-weight: 700;
+    color: var(--qb-navy);
+    flex: 1;
+}
+
+.iif-file-info .filesize {
+    color: var(--text-muted);
+    font-size: 10px;
+}
+
+.iif-import-actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.iif-results {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    padding: 12px;
+    font-size: 11px;
+}
+
+.iif-results h4 {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--qb-navy);
+    margin-bottom: 8px;
+}
+
+.iif-results .result-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 3px 0;
+    border-bottom: 1px solid #e8ecf0;
+}
+
+.iif-results .result-row:last-child {
+    border-bottom: none;
+}
+
+.iif-results .result-count {
+    font-weight: 700;
+    font-family: var(--font-mono);
+}
+
+.iif-validation-ok {
+    color: var(--qb-green);
+    font-weight: 700;
+}
+
+.iif-validation-err {
+    color: var(--qb-red);
+    font-weight: 700;
+}
+
+.iif-validation-warn {
+    color: var(--qb-orange);
+}
+
+.iif-errors {
+    margin-top: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    background: #fff8f8;
+    border: 1px solid #fca5a5;
+    padding: 6px 8px;
+    color: var(--qb-red);
+}
+
+.iif-warnings {
+    margin-top: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+    font-size: 10px;
+    font-family: var(--font-mono);
+    background: #fffbf0;
+    border: 1px solid #fbbf24;
+    padding: 6px 8px;
+    color: var(--qb-orange);
+}
+
+/* "Change ALL-CAPS names" on the IIF import (#195): the box, and a few of
+   the file's own names as it would import them */
+.iif-retitle {
+    margin-top: 8px;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    padding: 8px 10px;
+    font-size: 11px;
+    color: var(--text-primary);
+}
+
+.iif-retitle label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+}
+
+.iif-retitle ul {
+    margin: 6px 0 6px 20px;
+    font-family: var(--font-mono);
+}
+
+.iif-retitle p {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+/* ===========================================================================
+   Phase 9: Analytics page (#/analytics)
+   Inline SPA page matching the QB2003 blue skin with light/dark support.
+   =========================================================================== */
+
+.analytics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.analytics-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.analytics-controls label {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-right: 2px;
+}
+
+.analytics-controls select,
+.analytics-controls .btn-sm {
+    padding: 4px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+}
+
+.analytics-controls select {
+    background: var(--panel-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--panel-border);
+}
+
+.analytics-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.analytics-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+    .analytics-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+.analytics-kpi {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px 16px;
+}
+
+.analytics-kpi-label {
+    font-size: 9px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+}
+
+.analytics-kpi-value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.analytics-kpi-value.kpi-green  { color: var(--qb-green); }
+.analytics-kpi-value.kpi-red    { color: var(--qb-red); }
+.analytics-kpi-value.kpi-blue   { color: var(--qb-blue); }
+.analytics-kpi-value.kpi-purple { color: #a855f7; }
+
+.analytics-section-title {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin: 20px 0 8px;
+    font-weight: 600;
+}
+
+.analytics-card {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+}
+
+.analytics-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 900px) {
+    .analytics-two-col { grid-template-columns: 1fr; }
+}
+
+.chart-wrap {
+    position: relative;
+    width: 100%;
+    height: 280px;
+    margin-bottom: 8px;
+}
+
+.chart-wrap-sm {
+    height: 220px;
+}
+
+.analytics-empty {
+    padding: 14px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.analytics-error {
+    padding: 14px 16px;
+    background: #fff4f4;
+    border: 1px solid var(--qb-red);
+    border-radius: 4px;
+    color: var(--qb-red);
+    font-size: 12px;
+}
+
+.analytics-error strong { display: block; margin-bottom: 4px; }
+
+.amount.green { color: var(--qb-green); }
+.amount.red   { color: var(--qb-red); }
+.amount.amber { color: var(--qb-orange); }
+
+.totals-row td {
+    border-top: 2px solid var(--panel-border);
+    background: rgba(51, 102, 153, 0.04);
+}
+
+/* ================================================================
+ * Phase 9.5 — AI Insights panel + settings modal
+ * ================================================================ */
+.ai-insights-card {
+    border-left: 3px solid #a855f7;
+}
+
+.ai-insights-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #9b3cf6;   /* #a855f7, the card's border, is 3.96:1 as text on white */
+}
+
+.ai-insights-body {
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--text-muted);
+}
+
+.ai-insights-body h3,
+.ai-insights-body h4 {
+    margin: 10px 0 4px;
+    color: var(--text-heading, var(--text-primary));
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ai-insights-body ul {
+    margin: 4px 0 8px 18px;
+    padding: 0;
+}
+
+.ai-insights-body li {
+    margin-bottom: 3px;
+}
+
+.ai-insights-body p {
+    margin: 6px 0;
+}
+
+.ai-insights-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 8px 0;
+}
+
+.ai-insights-busy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    padding: 10px 0;
+}
+
+.ai-insights-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ai-cache-badge {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 600;
+}
+
+/* AI Predefined Analyses panel — same visual family as .ai-insights-card */
+.ai-actions-card {}
+
+.ai-actions-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.ai-actions-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.ai-actions-form select {
+    flex: 1;
+    min-width: 220px;
+    padding: 6px 10px;
+    font-size: 13px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+.ai-actions-form select:focus {
+    outline: 2px solid #a855f7;
+    outline-offset: -1px;
+}
+
+.ai-actions-meta {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.ai-actions-meta strong {
+    color: var(--text-primary);
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 12px;
+}
+
+.ai-actions-body {
+    font-size: 13px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.ai-actions-body h3,
+.ai-actions-body h4 {
+    margin: 10px 0 4px;
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ai-actions-body ul {
+    margin: 4px 0 8px 18px;
+    padding: 0;
+}
+
+.ai-actions-body li { margin: 2px 0; }
+.ai-actions-body p { margin: 4px 0; }
+
+.ai-actions-empty,
+.ai-actions-busy {
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 8px 0;
+}
+
+.ai-settings-form .form-field {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.ai-settings-form .form-field > span {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 4px;
+}
+
+.ai-settings-form input,
+.ai-settings-form select {
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+.ai-settings-form input:focus,
+.ai-settings-form select:focus {
+    outline: 2px solid #a855f7;
+    outline-offset: -1px;
+}
+
+.ai-settings-hint {
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 10px;
+    padding-left: 2px;
+}
+
+.ai-key-saved {
+    color: var(--text-success);   /* #00c48f was 2.26:1 as text on white */
+    font-style: normal;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.ai-settings-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--panel-border);
+}
+
+.ai-settings-spacer { flex: 1; }
+
+.ai-settings-test-result {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.ai-test-ok { color: var(--text-success); }   /* #00c48f was 2.26:1 on white */
+.ai-test-fail { color: var(--text-danger); }
+
+/* ----------------------------------------------------------------
+ * Cloudflare Worker Gateway section (appears when provider is
+ * `cloudflare_worker`). Called out visually so it's obvious this is
+ * the self-hosted, credentials-stay-in-CF option.
+ * ---------------------------------------------------------------- */
+.ai-worker-section {
+    margin: 10px 0 4px 0;
+    padding: 10px 12px 6px 12px;
+    border: 1px solid #f38020;  /* Cloudflare orange */
+    border-left-width: 3px;
+    border-radius: 4px;
+    background: rgba(243, 128, 32, 0.06);
+}
+
+.ai-worker-section > legend {
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #f38020;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ai-worker-help,
+.ai-worker-security {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 4px 0 6px 0;
+    line-height: 1.4;
+}
+
+.ai-worker-help code,
+.ai-worker-security code {
+    background: rgba(0, 0, 0, 0.15);
+    padding: 1px 4px;
+    border-radius: 2px;
+    font-size: 10px;
+}
+
+.ai-worker-security {
+    color: var(--text-success);  /* green — safety callout (#00c48f was 2.26:1 on white) */
+    border-top: 1px dashed rgba(243, 128, 32, 0.3);
+    padding-top: 6px;
+    margin-top: 6px;
+}
+
+.ai-worker-required {
+    color: #f38020;
+    font-style: normal;
+    font-size: 10px;
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+/* ================================================================
+ * Phase 9.5b — AI Chat Q&A panel
+ * ================================================================ */
+.ai-chat-card {
+    border-left: 3px solid #38bdf8;
+}
+
+.ai-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #38bdf8;
+}
+
+.ai-chat-messages {
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 10px 0;
+    font-size: 12px;
+}
+
+.ai-chat-empty {
+    color: var(--text-muted);
+    padding: 8px 4px;
+}
+
+.ai-chat-empty p {
+    margin-bottom: 6px;
+    font-style: italic;
+}
+
+.ai-chat-examples {
+    margin: 6px 0 0 18px;
+    padding: 0;
+    font-size: 11px;
+}
+
+.ai-chat-examples li {
+    margin-bottom: 3px;
+    color: var(--text-muted);
+}
+
+.ai-chat-message {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+}
+
+.ai-chat-avatar {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border-radius: 50%;
+    background: var(--panel-border);
+}
+
+.ai-chat-user .ai-chat-avatar {
+    background: rgba(56, 189, 248, 0.2);
+}
+
+.ai-chat-assistant .ai-chat-avatar {
+    background: rgba(168, 85, 247, 0.2);
+}
+
+.ai-chat-bubble {
+    flex: 1;
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    line-height: 1.5;
+}
+
+.ai-chat-user .ai-chat-bubble {
+    background: rgba(56, 189, 248, 0.05);
+}
+
+.ai-chat-bubble p {
+    margin: 4px 0;
+}
+
+.ai-chat-bubble h3,
+.ai-chat-bubble h4 {
+    margin: 6px 0 3px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ai-chat-bubble ul {
+    margin: 4px 0 4px 16px;
+    padding: 0;
+}
+
+.ai-chat-tools {
+    margin-top: 6px;
+    font-size: 10px;
+    color: var(--text-muted);
+}
+
+.ai-chat-tools summary {
+    cursor: pointer;
+    padding: 2px 0;
+}
+
+.ai-chat-tools ul {
+    margin-top: 4px;
+    padding-left: 16px;
+}
+
+.ai-chat-tools code {
+    background: rgba(0, 0, 0, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-family: var(--mono-font, monospace);
+}
+
+.ai-chat-form {
+    display: flex;
+    gap: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--panel-border);
+    margin-top: 8px;
+}
+
+.ai-chat-form input {
+    flex: 1;
+    padding: 6px 10px;
+    font-size: 12px;
+    border: 1px solid var(--panel-border);
+    border-radius: 4px;
+    background: var(--panel-bg);
+    color: var(--text-primary);
+}
+
+.ai-chat-form input:focus {
+    outline: 2px solid #38bdf8;
+    outline-offset: -1px;
+}
+
+.ai-chat-form input:disabled {
+    opacity: 0.5;
+}
+
+.spinner {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border: 2px solid var(--text-muted);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: ai-chat-spin 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes ai-chat-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Scan Receipt canvas — field picker buttons. Each carries its field
+   color as custom properties (set by OcrCanvas.panelHtml). */
+.btn.ocr-pick, .btn.ocr-pick:hover, .btn.ocr-pick:active {
+    border: 2px solid var(--pick-stroke);
+    background: var(--pick-fill);
+    color: var(--pick-ink);
+}
+.btn.ocr-pick:hover { filter: brightness(0.96); }
+
+
+/* Customizable dashboard: stat tiles share a row, panels take half or all */
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+.dash-card--stat { grid-column: span 1; }
+.dash-card--half { grid-column: span 2; }
+.dash-card--full { grid-column: span 4; }
+.dash-card__body { margin-top: 6px; }
+.dash-card__controls { display: inline-flex; gap: 2px; }
+.dash-card__controls .btn { padding: 0 6px; line-height: 18px; font-size: 10px; }
+@media (max-width: 900px) {
+    .dash-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dash-card--full { grid-column: span 2; }
+}
+@media (max-width: 560px) {
+    .dash-grid { grid-template-columns: 1fr; }
+    .dash-card--stat, .dash-card--half, .dash-card--full { grid-column: span 1; }
+}
+
+/* Control accounts (issue #122) — the posting code finds these by number, so
+   the Chart of Accounts marks them and the edit form locks the number and the
+   type. The row still gets an Edit button: renaming is allowed, and the API
+   is the authority on what is refused. */
+.badge-control {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fbbf24;
+    vertical-align: middle;
+    cursor: help;
+}
+
+.hint--locked {
+    background: #fffbeb;
+    border: 1px solid #fbbf24;
+    border-left: 3px solid #d97706;
+    border-radius: 3px;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #78350f;
+}
+
+.hint--locked em { color: #92400e; font-style: normal; font-weight: 600; }
+
+/* Notes drawn as a tinted box: all clear, needs attention, a caution, a
+   plain step. They were inline backgrounds, which stayed pale in the dark
+   theme under its light text (1.14:1); dark.css gives each a dark tint. */
+.card.note--ok,
+.note--ok      { background: #eaf5ec; border-left: 4px solid #1f7a36; }
+.card.note--alert,
+.note--alert   { background: #fdecea; border-left: 4px solid #a4242b; }
+.card.note--caution,
+.note--caution { background: #fffbe6; border-left: 4px solid #f5a623; }
+.note--plain   { background: #f4f6f9; }
+
+/* A void or inactive row reads as set aside: its text takes the muted
+   colour. It used to fade the whole row (opacity .55-.6), which took the
+   text below AA: muted text at 2.4:1 in dark. Badges keep their own. */
+tbody tr.row--dim > td,
+tbody tr.row--dim > td strong,
+tbody tr.row--dim > td.amount { color: var(--text-muted); }
+
+.form-group input[disabled],
+.form-group select[disabled] {
+    background: #f1f3f6;
+    color: var(--text-muted, #6b7090);
+    cursor: not-allowed;
+}
+
+/* ========================================================================
+ * TYPE-AHEAD PICKERS (combobox.js)
+ * A picker is a box you type into; its <select> stays, out of sight, as
+ * the answer. The list hangs from the window, over dialogs and tables.
+ * ======================================================================== */
+
+.cbx {
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+}
+.cbx.cbx--fill { display: block; width: 100%; }
+.cbx[hidden] { display: none !important; }
+
+/* The select is still there for the page's code (and a test's), but not
+   for the eye, the mouse or Tab. */
+.cbx > select.cbx-select {
+    position: absolute !important;
+    left: 0;
+    bottom: 0;
+    width: 1px !important;
+    height: 1px !important;
+    min-width: 0 !important;
+    max-width: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    clip-path: inset(50%);
+}
+
+/* The box: like the app's other fields where no form styles it, and
+   everywhere a picker's arrow, so it still reads as a list. */
+.cbx-input {
+    padding: 3px 6px;
+    border: 1px solid var(--input-border);
+    border-radius: 0;
+    font-size: 11px;
+    font-family: var(--font);
+    color: var(--text-primary);
+    background-color: #ffffff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0h8L4 5z' fill='%235b616d'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 6px center !important;
+    background-size: 8px 5px !important;
+    padding-right: 20px !important;
+}
+.cbx > .cbx-input {
+    width: 100%;
+    box-sizing: border-box;
+    text-overflow: ellipsis;
+}
+
+.cbx-popup {
+    position: fixed;
+    z-index: 450;   /* over a dialog (200) and a toast (300), under the splash */
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    color: var(--text-primary);
+    border: 1px solid var(--input-border);
+    box-shadow: 0 4px 14px rgba(0, 20, 50, 0.22);
+    font-family: var(--font);
+    font-size: 11px;
+}
+.cbx-popup[hidden] { display: none; }
+.cbx-popup > ul {
+    list-style: none;
+    margin: 0;
+    padding: 2px 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    min-height: 0;
+}
+.cbx-popup ul ul { list-style: none; margin: 0; padding: 0; }
+.cbx-opt {
+    padding: 3px 8px;
+    cursor: default;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.cbx-opt.cbx-current { font-weight: 700; }
+.cbx-opt mark { background: none; color: inherit; font-weight: 700; }
+.cbx-action { color: var(--text-link); }
+.cbx-in { color: var(--text-muted); font-size: 10px; }
+.cbx-opt[aria-selected="true"] { background: var(--qb-navy); color: #ffffff; }
+.cbx-opt[aria-selected="true"] .cbx-in { color: var(--text-on-navy); }
+.cbx-group {
+    display: block;
+    padding: 4px 6px 2px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+.cbx-note {
+    padding: 3px 8px 4px;
+    color: var(--text-muted);
+    font-style: italic;
+    border-top: 1px solid var(--panel-border);
+}
+.cbx-note[hidden] { display: none; }
+.cbx-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+@media (forced-colors: active) {
+    .cbx-opt[aria-selected="true"] { outline: 2px solid Highlight; outline-offset: -2px; }
+}
+
+/* Narrow windows keep complete tables accessible through local scrolling. */
+#main-area, .dash-card, .analytics-card, .panel, .card { min-width: 0; }
+.table-scroll, .data-table-wrap { max-width: 100%; overflow-x: auto; }
+.page-header, .toolbar, .form-actions, .analytics-controls { flex-wrap: wrap; gap: 8px; }
+.toolbar :is(input, select), .form-group :is(input, select, textarea) { max-width: 100%; min-width: 0; }
+@media (max-width: 600px) {
+    #topbar { height: auto; min-height: var(--topbar-height); flex-wrap: wrap; padding: 6px 8px; }
+    .topbar-brand { margin-right: 6px; }
+    .topbar-company { max-width: 140px; }
+    .topbar-right { margin-left: auto; }
+    #sidebar { width: 130px; }
+    #content { padding: 12px 8px; }
+    #statusbar { flex-wrap: wrap; height: auto; min-height: var(--statusbar-height); }
+    .page-header h2 { overflow-wrap: anywhere; }
+    .form-row { flex-wrap: wrap; }
+    .modal { max-width: calc(100vw - 16px); }
+}

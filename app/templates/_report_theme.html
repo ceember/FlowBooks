@@ -1,0 +1,48 @@
+{# Shared print theme for financial-report PDFs.
+   Paper size comes from the pdf_paper_size setting (letter default,
+   a4 selectable) — parameterized rather than hardcoded so US and
+   international installs both print natively. Ported concept from the
+   joelmacklow fork's _document_theme partial. #}
+<style>
+    {# The footer takes the company name from the page itself (string-set
+       on .report-company below), not from text written into this style
+       block: <style> is raw text, so autoescaping printed "Explore Signs
+       &amp; Co" on every page, and a quote in a name would have ended the
+       CSS string. A margin box does not inherit the body's font either —
+       it fell back to a serif or monospace face — so it names the font. #}
+    @page {
+        size: {{ 'A4' if paper_size == 'a4' else 'letter' }};
+        margin: 18mm 16mm 20mm 16mm;
+        @bottom-center {
+            content: string(company) " — page " counter(page) " of " counter(pages);
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-size: 8px;
+            color: #888;
+        }
+    }
+    .report-company { string-set: company content(); }
+    body {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        font-size: 10.5px;
+        color: #1a1a2e;
+        margin: 0;
+    }
+    h1 { font-size: 18px; margin: 0 0 2px; }
+    h2 { font-size: 13px; margin: 18px 0 6px; border-bottom: 2px solid #1a1a2e; padding-bottom: 3px; }
+    .report-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
+    .report-meta { font-size: 9.5px; color: #555; text-align: right; }
+    table.report { width: 100%; border-collapse: collapse; }
+    table.report th {
+        text-align: left; font-size: 9px; text-transform: uppercase;
+        letter-spacing: 0.04em; color: #555; border-bottom: 1px solid #999;
+        padding: 3px 6px;
+    }
+    table.report th.amount, table.report td.amount { text-align: right; white-space: nowrap; }
+    table.report td { padding: 3px 6px; border-bottom: 0.5px solid #e2e2e2; }
+    table.report tr.subtotal td { font-weight: 700; border-top: 1px solid #999; }
+    table.report tr.grand-total td {
+        font-weight: 700; border-top: 2px solid #1a1a2e;
+        border-bottom: 3px double #1a1a2e; font-size: 11px;
+    }
+    .section-break { page-break-before: always; }
+</style>

@@ -1,0 +1,78 @@
+# ============================================================================
+# Recurring Invoices — schedule automatic invoice generation
+# Feature 2: Weekly/monthly/quarterly/yearly recurring invoice templates
+# ============================================================================
+
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Date,
+    Numeric,
+    DateTime,
+    Boolean,
+    Text,
+    ForeignKey,
+    func,
+)
+from sqlalchemy.orm import relationship
+
+from app.database import Base
+
+
+class RecurringInvoice(Base):
+    __tablename__ = "recurring_invoices"
+
+    id = Column(Integer, primary_key=True, index=True)
+    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
+    frequency = Column(String(20), nullable=False)  # weekly, monthly, quarterly, yearly
+    start_date = Column(Date, nullable=False)
+    end_date = Column(Date, nullable=True)
+    next_due = Column(Date, nullable=False)
+    is_active = Column(Boolean, default=True)
+
+    terms = Column(String(50), default="Net 30")
+    tax_rate = Column(Numeric(7, 6), default=0)  # a fraction: 8.875% is 0.08875
+    notes = Column(Text, nullable=True)
+    invoices_created = Column(Integer, default=0)
+
+    # Class tracking dimension (QB-style); NULL groups with Uncategorized
+    class_id = Column(Integer, ForeignKey("classes.id"), nullable=True)
+    # Job-costing dimension (QB "Customer:Job"); NULL = no job
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    customer = relationship("Customer", backref="recurring_invoices")
+    lines = relationship(
+        "RecurringInvoiceLine",
+        back_populates="recurring_invoice",
+        cascade="all, delete-orphan",
+        order_by="RecurringInvoiceLine.line_order",
+    )
+
+
+class RecurringInvoiceLine(Base):
+    __tablename__ = "recurring_invoice_lines"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recurring_invoice_id = Column(
+        Integer, ForeignKey("recurring_invoices.id", ondelete="CASCADE"), nullable=False
+    )
+    item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
+    description = Column(Text, nullable=True)
+    quantity = Column(Numeric(10, 2), default=1)
+    # Unit price to four places: bulk goods are priced like $0.045 a box.
+    # The line amount is still rounded to the cent (accounting._q).
+    rate = Column(Numeric(17, 4), default=0)
+    # Per-line sales tax (default: the item's flag, or taxable). A customer-
+    # owned-device repair is labor with no tax; the part on the same invoice
+    # is taxed.
+    is_taxable = Column(Boolean, nullable=False, default=True)
+    line_order = Column(Integer, default=0)
+
+    recurring_invoice = relationship("RecurringInvoice", back_populates="lines")
+    item = relationship("Item")

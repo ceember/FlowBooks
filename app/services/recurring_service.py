@@ -1,0 +1,237 @@
+# ============================================================================
+# Recurring Invoice Service — generates invoices from recurring templates
+# Feature 2: Infrastructure C (background scheduler / cron)
+# ============================================================================
+
+from datetime import date, timedelta
+from decimal import Decimal
+from dateutil.relativedelta import relativedelta
+
+from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+
+from app.models.recurring import RecurringInvoice
+from app.models.invoices import Invoice, InvoiceLine
+from app.models.items import Item
+from app.services.numbering import next_invoice_number
+from app.services.accounting import (
+    taxed_copy_lines,
+    _q,
+    compute_line_totals,
+    create_journal_entry,
+    get_ar_account_id,
+    get_default_income_account_id,
+    get_sales_tax_account_id,
+)
+
+
+def _advance_next_due(current: date, frequency: str) -> date:
+    if frequency == "weekly":
+        return current + timedelta(weeks=1)
+    elif frequency == "monthly":
+        return current + relativedelta(months=1)
+    elif frequency == "quarterly":
+        return current + relativedelta(months=3)
+    elif frequency == "yearly":
+        return current + relativedelta(years=1)
+    return current + relativedelta(months=1)
+
+
+def generate_due_invoices(
+    db: Session, as_of: date = None, skipped: list | None = None
+) -> list[int]:
+    """Generate all invoices that are due on or before as_of date.
+    Returns list of created invoice IDs.
+
+    A template whose lines add up to $0.00 (one saved before the routes
+    refused them) generates nothing and keeps its date, so it catches up
+    once a rate is entered; pass a list as `skipped` to hear which ones and
+    why. Two such $0.00 invoices were generated on the 2.17.3 exploratory
+    run and then showed on the dashboard as overdue."""
+    from app.services.donor_documents import document_label
+    from app.services.terminology import terms_from_db
+
+    words = terms_from_db(db)
+    from app.services.settings_service import is_nonprofit
+
+    # A nonprofit's recurring invoices are pledges (printed as such)
+    nonprofit = is_nonprofit(db)
+    if as_of is None:
+        as_of = date.today()
+
+    recurrings = (
+        db.query(RecurringInvoice)
+        .filter(
+            RecurringInvoice.is_active,
+            RecurringInvoice.next_due <= as_of,
+        )
+        .all()
+    )
+
+    created_ids = []
+    ar_id = get_ar_account_id(db)
+    default_income_id = get_default_income_account_id(db)
+    tax_account_id = get_sales_tax_account_id(db)
+
+    for rec in recurrings:
+        # Check end date
+        if rec.end_date and rec.next_due > rec.end_date:
+            rec.is_active = False
+            continue
+
+        # Compute totals via the shared helper: each line is rounded to 2dp
+        # before summing so the stored subtotal matches the sum of stored
+        # line amounts, and journal credits land on the same cents as the
+        # A/R debit once SQL rounds.
+        tax_rate = rec.tax_rate or Decimal("0")
+        # the customer's CURRENT tax treatment, not the template's saved flags
+        copied = taxed_copy_lines(rec.lines, rec.customer)
+        subtotal, tax_amount, total = compute_line_totals(copied, tax_rate)
+        if total <= 0:
+            if skipped is not None:
+                who = rec.customer.name if rec.customer else f"schedule {rec.id}"
+                skipped.append(
+                    {
+                        "recurring_id": rec.id,
+                        "customer_name": rec.customer.name if rec.customer else None,
+                        "message": (
+                            f"The schedule for {who} adds up to $0.00, so "
+                            "nothing was created. Open it and enter a rate "
+                            "on at least one line."
+                        ),
+                    }
+                )
+            continue
+
+        # Parse terms for due date
+        due_date = rec.next_due + timedelta(days=30)
+        if rec.terms:
+            try:
+                days = int(rec.terms.lower().replace("net ", ""))
+                due_date = rec.next_due + timedelta(days=days)
+            except ValueError:
+                pass
+
+        # MAX+1 numbering races against concurrent manual creates (same as
+        # the invoices route). Retry under a SAVEPOINT so a collision rolls
+        # back only this attempt — not the other invoices already generated
+        # in this batch — and a template that can't get a number is simply
+        # left for the next run instead of aborting the whole batch.
+        invoice = None
+        invoice_number = None
+        for _ in range(10):
+            invoice_number = next_invoice_number(db)
+            candidate = Invoice(
+                invoice_number=invoice_number,
+                customer_id=rec.customer_id,
+                date=rec.next_due,
+                due_date=due_date,
+                terms=rec.terms,
+                subtotal=subtotal,
+                tax_rate=tax_rate,
+                tax_amount=tax_amount,
+                total=total,
+                balance_due=total,
+                notes=rec.notes,
+                class_id=rec.class_id,
+                job_id=rec.job_id,
+                recurring_invoice_id=rec.id,
+                is_pledge=nonprofit,
+            )
+            nested = db.begin_nested()
+            db.add(candidate)
+            try:
+                db.flush()
+                nested.commit()
+                invoice = candidate
+                break
+            except IntegrityError as e:
+                nested.rollback()
+                if "invoice_number" not in str(e.orig).lower():
+                    raise
+        if invoice is None:
+            continue
+
+        for rline, cline in zip(rec.lines, copied):
+            db.add(
+                InvoiceLine(
+                    invoice_id=invoice.id,
+                    item_id=rline.item_id,
+                    description=rline.description,
+                    quantity=rline.quantity,
+                    rate=rline.rate,
+                    is_taxable=cline.is_taxable,
+                    amount=_q(Decimal(str(rline.quantity)) * Decimal(str(rline.rate))),
+                    line_order=rline.line_order,
+                )
+            )
+
+        # Journal entry
+        if ar_id and default_income_id:
+            journal_lines = [
+                {
+                    "account_id": ar_id,
+                    "debit": total,
+                    "credit": Decimal("0"),
+                    "description": f"Recurring {document_label(candidate, words)} #{invoice_number}",
+                }
+            ]
+            for rline in rec.lines:
+                # Must round per-line BEFORE summing to match compute_line_totals;
+                # otherwise stored credits drift from the rounded A/R debit.
+                line_amt = _q(Decimal(str(rline.quantity)) * Decimal(str(rline.rate)))
+                if line_amt == 0:
+                    continue
+                income_id = default_income_id
+                if rline.item_id:
+                    item = db.query(Item).filter(Item.id == rline.item_id).first()
+                    if item and item.income_account_id:
+                        income_id = item.income_account_id
+                journal_lines.append(
+                    {
+                        "account_id": income_id,
+                        "debit": Decimal("0"),
+                        "credit": line_amt,
+                        "description": rline.description or "",
+                    }
+                )
+            if tax_amount > 0 and tax_account_id:
+                journal_lines.append(
+                    {
+                        "account_id": tax_account_id,
+                        "debit": Decimal("0"),
+                        "credit": tax_amount,
+                        "description": "Sales tax",
+                    }
+                )
+            txn = create_journal_entry(
+                db,
+                rec.next_due,
+                f"Recurring {document_label(candidate, words)} #{invoice_number}",
+                journal_lines,
+                source_type="invoice",
+                source_id=invoice.id,
+                reference=invoice_number,
+                class_id=invoice.class_id,
+                job_id=invoice.job_id,
+            )
+            invoice.transaction_id = txn.id
+
+        # Phase 11 (audit fix): recurring-generated invoices are real sales
+        # and must hit the inventory ledger.
+        db.flush()
+        db.refresh(invoice)
+        from app.services.inventory_hooks import post_sale_for_invoice
+
+        post_sale_for_invoice(db, invoice, txn_date=rec.next_due)
+
+        # Advance next due date
+        rec.next_due = _advance_next_due(rec.next_due, rec.frequency)
+        rec.invoices_created += 1
+        if rec.end_date and rec.next_due > rec.end_date:
+            rec.is_active = False
+
+        created_ids.append(invoice.id)
+
+    db.commit()
+    return created_ids

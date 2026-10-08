@@ -1,0 +1,47 @@
+from datetime import date as dt_date
+from decimal import Decimal
+from typing import Optional
+
+from pydantic import BaseModel, field_validator
+
+from app.schemas.common import StrictModel, TaxRate
+
+from app.schemas.invoices import InvoiceLineCreate, InvoiceResponse
+from app.schemas.payments import PaymentResponse
+
+
+class SalesReceiptCreate(StrictModel):
+    """One-screen sales receipt: an invoice and its full payment entered
+    together (QB's "Enter Sales Receipts"). No terms/due date — payment is
+    at the time of sale."""
+
+    # Left out: a counter sale, recorded against the built-in walk-in
+    # customer ("Walk-in Customer"; "Anonymous Donor" for a nonprofit).
+    customer_id: Optional[int] = None
+    date: dt_date
+    tax_rate: TaxRate = Decimal("0")
+    method: Optional[str] = None
+    check_number: Optional[str] = None
+    reference: Optional[str] = None
+    deposit_to_account_id: Optional[int] = None
+    notes: Optional[str] = None
+    class_id: Optional[int] = None
+    job_id: Optional[int] = None
+    currency: Optional[str] = None
+    exchange_rate: Optional[Decimal] = None
+    # Nonprofit donation receipt: what the donor got back, if anything
+    fair_value_amount: Optional[Decimal] = None
+    fair_value_description: Optional[str] = None
+    lines: list[InvoiceLineCreate] = []
+
+    @field_validator("lines")
+    @classmethod
+    def _require_lines(cls, v):
+        if not v:
+            raise ValueError("sales receipt must have at least one line")
+        return v
+
+
+class SalesReceiptResponse(BaseModel):
+    invoice: InvoiceResponse
+    payment: PaymentResponse

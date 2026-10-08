@@ -1,0 +1,61 @@
+# Web framework + ASGI server
+fastapi>=0.135.0,<0.142  # cap tracks latest tested (0.141.x, v2.3.0 release pass)
+uvicorn[standard]>=0.32.0,<1.0
+# Explicit starlette pin overrides fastapi's looser upper bound. Fixes:
+#   CVE-2024-47874  (DoS via multipart; fixed in 0.40.0)
+#   CVE-2025-54121  (path traversal via static; fixed in 0.47.2)
+#   PYSEC-2026-161  (fixed in 1.0.1)
+starlette>=1.0.1,<2.0
+
+# Database
+sqlalchemy>=2.0.40,<2.1  # 2.1 made postgresql:// mean psycopg (v3), which is not installed: every fresh Docker image failed to import (2026-09-25). Move deliberately, with the gate.
+alembic>=1.16.0,<2.0
+psycopg2-binary==2.9.12  # 2.9.10+ ships Python 3.13 wheels; 2.9.9 forces source build on slim images
+
+# Validation + settings
+pydantic>=2.11.0,<3.0
+pydantic-settings>=2.10.0,<3.0
+python-dotenv==1.2.2  # CVE-2026-28684 — set_key()/unset_key() symlink following; we only use load_dotenv() but bumping anyway
+
+# Templating + PDF
+jinja2==3.1.6
+weasyprint==70.0  # 69.0 affected by CVE-2026-55073 (write_pdf bypassed url_fetcher); 68.1 by CVE-2026-49452
+pydyf==0.12.1
+
+# Form upload parsing
+python-multipart==0.0.32  # CVE-2026-53538/-53539 (fixed 0.0.30), CVE-2026-53540 (fixed 0.0.31) — multipart parsing DoS hardening
+
+# Bank-statement parsing + dates
+ofxparse>=0.21,<1.0
+python-dateutil>=2.9.0,<3.0
+
+# NOTE: receipt intake OCR (Tier 2) intentionally adds ZERO Python deps —
+# it shells out to the user-installed `tesseract` binary and, for PDFs, the
+# poppler-utils tools (pdftoppm/pdfinfo). Both are detected at runtime with
+# graceful degrade (see docs/design/receipt-intake-spec.md).
+
+# Third-party integrations
+stripe>=8.0.0,<16.0  # core Checkout/Webhook APIs stable across majors; verified by provider tests
+python-quickbooks>=0.9.0,<1.0
+intuit-oauth>=1.2.0,<2.0
+# Explicit pyjwt pin — intuit-oauth's transitive dep was at 2.7.0 (two CVEs).
+# 2.10.0+ has PYSEC-2026-120 fixed.
+pyjwt>=2.10.0,<3.0
+
+# Crypto / HTTP / JSON
+# Cap raised from <47.0 to <49.0 to pull cryptography>=48.0.1 (GHSA-537c-gmf6-5ccf).
+# 47.x/48.x breaking changes reviewed: OpenSSL <3.0 and Python 3.8 dropped, binary
+# EC curves removed, key loading raises UnsupportedAlgorithm instead of ValueError —
+# none affect our Fernet/PBKDF2HMAC-only usage.
+# (46.x cap previously fixed: CVE-2023-50782, CVE-2024-0727, CVE-2024-12797,
+#  PYSEC-2024-225, PYSEC-2026-35, CVE-2026-26007, GHSA-h4gh-qq45-vh27)
+cryptography>=48.0.1,<51.0  # 49/50 reviewed: legacy-OpenSSL drops only; Fernet/PBKDF2 usage unaffected
+httpx>=0.27.0,<1.0
+# (orjson dropped — FastAPI 0.121+ serializes via Pydantic natively and
+#  deprecated ORJSONResponse in 0.136; we no longer pin a custom encoder.)
+
+# Auth + rate limiting
+argon2-cffi>=23.1.0,<26.0
+itsdangerous>=2.1.0,<3.0  # Starlette SessionMiddleware signer
+slowapi>=0.1.9,<1.0
+jsonschema>=4.26,<5
