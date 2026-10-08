@@ -39,6 +39,7 @@ jobs:
         with:
           msystem: MINGW64
           update: true
+          cache: false  # avoid implicit Actions package-cache storage
           install: >-
             mingw-w64-x86_64-pango
             mingw-w64-x86_64-fontconfig
